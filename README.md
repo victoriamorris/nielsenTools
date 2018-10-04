@@ -8,6 +8,11 @@ Also required the pyperclip module (https://pypi.org/project/pyperclip/).
 
 ## Installation
 
+From GitHub:
+
+    git clone https://github.com/victoriamorris/nielsenTools
+    cd nielsenTools
+
 To install as a Python package:
 
     python setup.py install
