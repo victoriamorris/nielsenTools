@@ -396,8 +396,6 @@ def main(argv=None):
 
     print('Input folder: {}'.format(input_path))
     print('Output folder: {}'.format(output_path))
-    if not os.path.exists(os.path.join(output_path, 'Publishers')):
-        os.makedirs(os.path.join(output_path, 'Imprints'))
 
     # --------------------
     # Iterate through input files
