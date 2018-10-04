@@ -355,7 +355,7 @@ def search_for_isbns(path):
     works = db.get_works([u for u in isbn_list])
 
     ofile = open(path.replace('.txt', '_out.txt'), mode='w', encoding='utf-8', errors='replace')
-    ofile.write('Input ISBN\t13-digit ISBN\tPrefix\tFormat\tValid?\tNielsen Work ID\t\tRelated ISBNs\n')
+    ofile.write('Input ISBN\t13-digit ISBN\tPrefix\tFormat\tValid?\tNielsen Work ID\tRelated ISBNs\n')
     ifile = open(path, mode='r', encoding='utf-8', errors='replace')
 
     for filelineno, line in enumerate(ifile):
