@@ -4,7 +4,7 @@ Tools for working with data feeds from Nielsen
 ## Requirements
 
 Requires the regex module from https://bitbucket.org/mrabarnett/mrab-regex. The built-in re module is not sufficient.
-Also required the pyperclip module (https://pypi.org/project/pyperclip/).
+Also requires the pyperclip module (https://pypi.org/project/pyperclip/).
 
 ## Installation
 
