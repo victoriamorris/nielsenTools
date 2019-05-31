@@ -1,30 +1,23 @@
-#  -*- coding: utf8 -*-
+#  -*- coding: utf-8 -*-
 
 """Functions used within nielsenTools."""
 
 # Import required modules
-import csv
 import datetime
-import fileinput
-import gc
-import getopt
 import locale
-import math
-import os
-import regex as re
-import string
 import sys
 import unicodedata
-from collections import OrderedDict
+import regex as re
 
-from nielsenTools.marc_data import *
-from nielsenTools.onix import *
 import nielsenTools.multiregex as mrx
 
+# Set locale to assist with sorting
+locale.setlocale(locale.LC_ALL, '')
 __author__ = 'Victoria Morris'
 __license__ = 'MIT License'
 __version__ = '1.0.0'
 __status__ = '4 - Beta Development'
+
 
 # ====================
 #      Constants
@@ -34,42 +27,42 @@ BRACKETS = [('[', ']'), ('(', ')'), ('{', '}')]
 
 
 # ====================
-#       Classes
-# ====================
-
-
-class FilePath:
-    def __init__(self, path=None, ext='.txt', function='input'):
-        self.path = path
-        self.ext = ext.lower()
-        self.function = function
-        if path:
-            self.set_path(path, self.ext)
-        else:
-            self.folder, self.filename, self.ext = '', '', ''
-
-    def set_path(self, path, ext):
-        self.path = path
-        self.folder, self.filename, self.ext = check_file_location(self.path,
-                                                                   ext,
-                                                                   self.function,
-                                                                   'output' not in self.function)
-
-
-# ====================
 #  General Functions
 # ====================
 
 
-def date_time():
-    print('\n\nAll processing complete')
+def usage(conversion_type='Products'):
+    """Function to print information about the program"""
+    print('Correct syntax is:')
+    print('nielsen2marc_{} -i <input_path> -o <output_path> [options]'.format(conversion_type.lower()))
+    print('    -i    path to FOLDER containing Input files')
+    print('    -o    path to FOLDER to contain Output files')
+    print('If not specified, input path will be /Input/{}'.format(conversion_type))
+    print('If not specified, output path will be /Output/{}'.format(conversion_type))
+    print('\nUse quotation marks (") around arguments which contain spaces')
+    print('\nInput file names should end .add, .upd or .del')
+    print('\nOptions')
+    print('    --help      Display this message and exit')
+    if conversion_type=='Products':
+        print('    --database  Add ISBN information to database')
+    exit_prompt()
+
+
+def date_time_message(message=None):
+    if message: print('\n\n{} ...'.format(message))
     print('----------------------------------------')
     print(str(datetime.datetime.now()))
 
 
 def date_time_exit():
-    date_time()
+    date_time_message(message='All processing complete')
     sys.exit()
+
+
+def message(s) -> str:
+    """Function to convert OPTIONS description to present tense"""
+    if s == 'Exit program': return 'Shutting down'
+    return s.replace('Parse', 'Parsing').replace('eXport', 'Exporting').replace('Search', 'Searching').replace('build', 'Building').replace('Index', 'index')
 
 
 def exit_prompt(message=None):
@@ -79,6 +72,7 @@ def exit_prompt(message=None):
     sys.exit()
 
 
+'''
 def check_file_location(file_path, file_ext='', function='input', exists=False):
     """Function to check whether a file exists and has the correct file extension"""
     folder, file, ext = '', '', ''
@@ -93,7 +87,7 @@ def check_file_location(file_path, file_ext='', function='input', exists=False):
     if exists and not os.path.isfile(os.path.join(folder, file + ext)):
         exit_prompt('Error: The specified {} file cannot be found'.format(function))
     return folder, file, ext
-
+'''
 
 # ====================
 #    Functions for
@@ -101,7 +95,7 @@ def check_file_location(file_path, file_ext='', function='input', exists=False):
 # ====================
 
 
-def clean(string): #, to_strip='.,'):
+def clean(string):
     if string is None or not string: return None
     string = re.sub(r'[\u0022\u055A\u05F4\u2018-\u201F\u275B-\u275E\uFF07]', '\'', string)
     string = re.sub(r'[\u0000-\u001F\u0080-\u009F\u2028\u2029]+', '', string)
@@ -164,7 +158,7 @@ def format_date(d):
     return None
 
 
-def _split_long(text, regex, separator='. ', isbn=None):
+def _split_long(text, regex, separator='. '):
     sentences = iter(regex.split(text))
     lines, current = [], next(sentences)
     for sentence in sentences:
@@ -182,17 +176,17 @@ def _split_long(text, regex, separator='. ', isbn=None):
 
 
 def split_long(text, isbn=None):
-    lines = _split_long(text, regex=re.compile(r'[\n\r]+'), separator=' ', isbn=isbn)
-    if lines == []: return []
+    lines = _split_long(text, regex=re.compile(r'[\n\r]+'), separator=' ')
+    if not lines: return []
     if max(len(l) for l in lines) <= 5000:
         return lines
     regex = re.compile(r'\.\-|\.?\t|\.?\s{2,}|\s(?=[0-9]+\.|\*\s+|\n)')
     if not regex.search(text): regex = re.compile(r'\.\s+')
-    lines = _split_long(text, regex=regex, separator='. ', isbn=isbn)
+    lines = _split_long(text, regex=regex, separator='. ')
     if lines == []: return []
     if max(len(l) for l in lines) <= 5000:
         return lines
-    lines = _split_long(text, regex=re.compile(r'\s+'), separator=' ', isbn=isbn)
+    lines = _split_long(text, regex=re.compile(r'\s+'), separator=' ')
     if max(len(l) for l in lines) > 5000:
         print('Error 2: ' + str(max(len(l) for l in lines)) + ': ' + str(isbn))
     return lines

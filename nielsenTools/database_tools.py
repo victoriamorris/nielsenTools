@@ -1,27 +1,45 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 
 # ====================
 #       Set-up
 # ====================
 
 # Import required modules
-import datetime
+import csv
 import gc
 import os
 import sqlite3
-from nielsenTools.isbn_tools import *
+
+from nielsenTools.functions import *
+from nielsenTools.network_tools import *
+from nielsenTools.nielsen_tools import *
 
 __author__ = 'Victoria Morris'
 __license__ = 'MIT License'
 __version__ = '1.0.0'
 __status__ = '4 - Beta Development'
 
+
 # ====================
 #      Constants
 # ====================
 
-DATABASE_PATH = 'Database\\ISBNs.db'
+
+DATABASE_PATH = 'isbns.db'
+
+
+GRAPH_TABLES = {
+    'isbns': ([
+        ('isbn', 'TEXT PRIMARY KEY'),
+        ('format', 'TEXT'),
+        ('checked', 'BOOLEAN'),
+    ]),
+    'adjacencies': ([
+        ('isbn', 'TEXT'),
+        ('adjacency', 'TEXT'),
+    ]),
+}
 
 
 # ====================
@@ -33,36 +51,47 @@ class IsbnDatabase:
 
     def __init__(self):
         # Connect to database
-        print('\n\nConnecting to local database ...')
-        print('----------------------------------------')
-        print(str(datetime.datetime.now()))
+        date_time_message('Connecting to local database')
+
+        self.conn = sqlite3.connect(DATABASE_PATH)
+        self.cursor = self.conn.cursor()
 
         self.output_path = os.path.dirname(DATABASE_PATH)
         self.conn = sqlite3.connect(DATABASE_PATH)
         self.cursor = self.conn.cursor()
 
         # Set up database
-        self.cursor.execute('PRAGMA synchronous=OFF')
+        self.cursor.execute('PRAGMA synchronous = OFF')
         self.cursor.execute('PRAGMA journal_mode = OFF')
         self.cursor.execute('PRAGMA locking_mode = EXCLUSIVE')
         self.cursor.execute('PRAGMA count_changes = FALSE')
 
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS isbns (isbn TEXT PRIMARY KEY, format TEXT, checked BOOLEAN);')
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS adjacencies (isbn TEXT, adjacency TEXT);')
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS works (isbn TEXT, nielsen_id TEXT);')
+        # Create tables
+        for table in GRAPH_TABLES:
+            print('Creating table {} ...'.format(table))
+            self.cursor.execute('CREATE TABLE IF NOT EXISTS {} '
+                                '({}, UNIQUE({}));'
+                                .format(table,
+                                        ', '.join('{} {}'.format(key, value) for (key, value) in GRAPH_TABLES[table]),
+                                        ', '.join(key for (key, value) in GRAPH_TABLES[table])))
         self.conn.commit()
+        gc.collect()
 
     def close(self):
         self.conn.close()
 
     def clean(self):
-        print('\nCleaning database...')
+        date_time_message('Cleaning database...')
 
-        # Delete duplicate adjacencies
-        self.cursor.execute("""
-        DELETE FROM adjacencies
-        WHERE rowid NOT IN (SELECT min(rowid) FROM adjacencies GROUP BY isbn, adjacency);""")
+        # Delete null entries
+        for table in GRAPH_TABLES:
+            print('Deleting NULL entries from table {} ...'.format(table))
+            self.cursor.execute('DELETE FROM {} '
+                                'WHERE {} IS NULL OR {} IS NULL OR {} = "" OR {} = "" ;'
+                                .format(table, GRAPH_TABLES[table][0][0], GRAPH_TABLES[table][1][0],
+                                        GRAPH_TABLES[table][0][0], GRAPH_TABLES[table][1][0]))
         self.conn.commit()
+        gc.collect()
 
         # Remove adjacencies for collective ISBNs
         collective = set(item[0] for item in self.cursor.execute("""SELECT isbn FROM isbns WHERE format='C' ;""").fetchall())
@@ -77,36 +106,172 @@ class IsbnDatabase:
         query = query.format(searchList='\'' + '\', \''.join(collective) + '\'')
         self.cursor.execute(query)
         self.conn.commit()
-        self.conn.execute("VACUUM")
+        del query
         gc.collect()
 
-    def dump_table(self, table_name):
+        date_time_message('Vacuuming')
+        self.conn.execute("VACUUM")
+        self.conn.commit()
+        gc.collect()
+
+    def build_index(self, table):
+        """Function to build indexes in a table"""
+        if table not in GRAPH_TABLES:
+            print('Table name {} not recognised'.format(table))
+            return None
+        print('\nBuilding indexes in {} table ...'.format(table))
+
+        self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_0 ;""".format(table))
+        self.cursor.execute("""CREATE INDEX IDX_{}_0 ON {} ({});""".format(table, table, GRAPH_TABLES[table][0][0]))
+        self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_1 ;""".format(table))
+        self.cursor.execute("""CREATE INDEX IDX_{}_1 ON {} ({});""".format(table, table, GRAPH_TABLES[table][1][0]))
+        self.conn.commit()
+        gc.collect()
+
+    def build_indexes(self):
+        """Function to build indexes in the whole database"""
+        print('\nBuilding indexes ...')
+        print('----------------------------------------')
+        print(str(datetime.datetime.now()))
+
+        for table in GRAPH_TABLES:
+            self.build_index(table)
+
+    def drop_indexes(self):
+        """Function to drop indexes in the whole database"""
+        for table in GRAPH_TABLES:
+            self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_0 ;""".format(table))
+            self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_1 ;""".format(table))
+            self.conn.commit()
+        gc.collect()
+
+    def dump_table(self, table):
         """Function to dump a database table into a text file"""
+        print('Creating dump of {} table ...'.format(table))
+        self.cursor.execute('SELECT * FROM {};'.format(table))
+        file = open('{}_DUMP_.txt'.format(table), mode='w', encoding='utf-8', errors='replace')
         record_count = 0
-        self.cursor.execute('SELECT * FROM {};'.format(table_name))
-        print('Creating dump of {} table'.format(table_name))
-        file = open(os.path.join(self.output_path, '{}_DUMP_.txt'.format(table_name)), mode='w', encoding='utf-8', errors='replace')
         row = self.cursor.fetchone()
         while row:
             record_count += 1
+            if record_count % 100 == 0:
+                print('\r{} records processed'.format(str(record_count)), end='\r')
             file.write('{}\n'.format(str(row)))
             row = self.cursor.fetchone()
+        del row
+        print('\r{} records processed'.format(str(record_count)), end='\r')
         file.close()
         gc.collect()
-        print('{} records in {} table'.format(str(record_count), table_name))
+        print('{} records in {} table'.format(str(record_count), table))
         return record_count
 
+    def dump_database(self):
+        """Function to create dumps of all tables within the database"""
+        print('\nCreating dump of database ...')
+        print('----------------------------------------')
+        print(str(datetime.datetime.now()))
+
+        self.count_nodes()
+        self.count_adjacencies()
+
+        for table in GRAPH_TABLES:
+            self.dump_table('{}'.format(table))
+
+    def add_nielsen(self, input_path, skip_check=True):
+        for root, subdirs, files in os.walk(input_path):
+            for file in files:
+                if file.endswith(('.add', '.upd', '.del')):
+                    date_time_message('Searching file {}'.format(str(file)))
+
+                    G = Graph(skip_check=skip_check)
+
+                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace', newline='')
+                    i = 0
+                    c = csv.DictReader(ifile, delimiter=',')
+                    for row in c:
+                        i += 1
+                        if i % 100 == 0:
+                            print('{} records processed'.format(str(i)), end='\r')
+                        nielsen = NielsenCluster(row)
+                        isbns = nielsen.get_alternative_formats()
+
+                        if isbns:
+                            data = [(i.isbn, i.format) for i in isbns if i.isbn]
+                            G.add_nodes(data)
+                            data = [(i.isbn, j.isbn) for i in isbns for j in isbns if
+                                    i.isbn and j.isbn and i.isbn != j.isbn and i.format != 'C' and j.format != 'C']
+                            G.add_edges(data)
+                    print('{} records processed'.format(str(i)), end='\r')
+
+                    ifile.close()
+                    G.check_graph()
+                    self.add_graph_to_database(G, skip_check)
+
+    def add_marc(self, input_path, skip_check=True):
+        for root, subdirs, files in os.walk(input_path):
+            for file in files:
+                if file.endswith('.lex'):
+                    date_time_message('Searching file {}'.format(str(file)))
+            return
+
+    def search_for_isbns(self, input_path):
+        for root, subdirs, files in os.walk(input_path):
+            for file in files:
+                if file.endswith('.txt'):
+                    date_time_message('Searching file {}'.format(file))
+
+                    connected_components = {}
+                    isbn_list = set()
+                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace')
+                    for filelineno, line in enumerate(ifile):
+                        line = line.strip()
+                        isbn = Isbn(line)
+                        if isbn.isbn:
+                            isbn_list.add(isbn.isbn)
+                            if isbn.isbn not in connected_components: connected_components[isbn.isbn] = set()
+                    ifile.close()
+
+                    for u in connected_components:
+                        for v in connected_components:
+                            if u in connected_components[v]:
+                                connected_components[u] = connected_components[v]
+                                connected_components[u].add(v)
+                                break
+                        if not connected_components[u]:
+                            connected_components[u] = self.node_connected_component(u)
+
+                    formats = self.get_formats([u for u in connected_components])
+
+                    ofile = open(os.path.join(root, file.replace('.txt', '_out.txt')), mode='w',
+                                 encoding='utf-8', errors='replace')
+                    ofile.write('Input ISBN\t13-digit ISBN\tPrefix\tFormat\tValid?\tRelated Identifiers\n')
+                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace')
+
+                    for filelineno, line in enumerate(ifile):
+                        line = line.strip()
+                        isbn = Isbn(line)
+                        if isbn.isbn in formats: isbn.format = formats[isbn.isbn]
+                        ofile.write('{}\t{}\t{}\n'.format(line, str(isbn),
+                                                          ';'.join(sorted(
+                                                              connected_components[isbn.isbn])) if isbn.isbn else ''))
+                    ifile.close()
+                    ofile.close()
+
+    def fetch_all(self, query):
+        self.cursor.execute(query)
+        try: s = set(item[0] for item in self.cursor.fetchall())
+        except: s = None
+        if s: return s
+        s = set()
+        for item in self.cursor:
+            s.add(item[0])
+        return s
+
     def list_nodes(self):
-        self.cursor.execute("""SELECT isbn FROM isbns;""")
-        return set(item[0] for item in self.cursor.fetchall())
+        return self.fetch_all("""SELECT isbn FROM isbns;""")
 
     def list_adjacencies(self):
-        self.cursor.execute("""SELECT isbn FROM adjacencies;""")
-        return set(item[0] for item in self.cursor.fetchall())
-
-    def list_works(self):
-        self.cursor.execute("""SELECT isbn FROM works;""")
-        return set(item[0] for item in self.cursor.fetchall())
+        return self.fetch_all("""SELECT isbn FROM adjacencies;""")
 
     def count_nodes(self):
         print('{} nodes in graph'.format(str(len(self.list_nodes()))))
@@ -114,13 +279,10 @@ class IsbnDatabase:
     def count_adjacencies(self):
         print('{} edges in graph'.format(str(len(self.list_adjacencies()))))
 
-    def count_works(self):
-        print('{} works in graph'.format(str(len(self.list_works()))))
-
     def write_adjacencies(self):
         print('Writing list adjacencies ...')
         file = open(os.path.join(self.output_path, 'ISBNs_list.txt'), 'w', encoding='utf-8', errors='replace')
-        file.write('ISBN\tPrefix\tFormat\tFormat checked?\tValid?\tRelated ISBNs\n')
+        file.write('Identifier\tPrefix\tFormat\tFormat checked?\tValid?\tRelated Identifiers\n')
         query = """
         SELECT isbns.*, GROUP_CONCAT(adjacencies.adjacency, ';')
         FROM isbns LEFT JOIN adjacencies ON isbns.isbn = adjacencies.isbn
@@ -166,20 +328,6 @@ class IsbnDatabase:
             except: break
         return formats
 
-    def get_works(self, nodes):
-        if not nodes: return None
-        works = {}
-        query = """SELECT isbn, nielsen_id FROM works WHERE isbn IN ({searchList}) ORDER BY isbn ASC; """
-        self.cursor.execute(query.format(searchList='\'' + '\', \''.join(nodes) + '\''))
-        try: row = self.cursor.fetchone()
-        except: row = list(self.cursor.fetchone())
-        while row:
-            isbn, work = row[0], row[1]
-            works[isbn] = work
-            try: row = list(self.cursor.fetchone())
-            except: break
-        return works
-
     def node_connected_component(self, source):
         seen = set()
         nextlevel = {source}
@@ -214,7 +362,7 @@ class IsbnDatabase:
         print('\nAdding new nodes ...')
         i = 0
         query = """
-        INSERT INTO isbns (isbn, format, checked)
+        INSERT OR IGNORE INTO isbns (isbn, format, checked)
         VALUES (?, ?, ?); """
         values = []
         for node in new:
@@ -252,25 +400,25 @@ class IsbnDatabase:
                         update_checked.append([c, isbn])
                 if i % 1000 == 0:
                     if update_formats:
-                        self.cursor.executemany("""UPDATE isbns SET format = ? WHERE isbn = ?;""", update_formats)
+                        self.cursor.executemany("""UPDATE OR REPLACE isbns SET format = ? WHERE isbn = ?;""", update_formats)
                     if update_checked:
-                        self.cursor.executemany("""UPDATE isbns SET checked = ? WHERE isbn = ?;""", update_checked)
+                        self.cursor.executemany("""UPDATE OR REPLACE isbns SET checked = ? WHERE isbn = ?;""", update_checked)
                     update_formats, update_checked = [], []
                 try:
                     row = list(self.cursor.fetchone())
                 except:
                     break
             if update_formats:
-                self.cursor.executemany("""UPDATE isbns SET format = ? WHERE isbn = ?;""", update_formats)
+                self.cursor.executemany("""UPDATE OR REPLACE isbns SET format = ? WHERE isbn = ?;""", update_formats)
             if update_checked:
-                self.cursor.executemany("""UPDATE isbns SET checked = ? WHERE isbn = ?;""", update_checked)
+                self.cursor.executemany("""UPDATE OR REPLACE isbns SET checked = ? WHERE isbn = ?;""", update_checked)
                 self.conn.commit()
             print('{} existing nodes updated'.format(str(i)))
 
         # Add new adjacencies
         i = 0
         query = """
-        INSERT INTO adjacencies (isbn, adjacency)
+        INSERT OR IGNORE INTO adjacencies (isbn, adjacency)
         VALUES (?, ?); """
         values = []
         for node in graph.nodes:
@@ -284,92 +432,47 @@ class IsbnDatabase:
         self.conn.commit()
         print('{} new adjacencies added to graph'.format(str(i)))
 
-        # Add new work IDs
-        i = 0
-        query = """
-                INSERT INTO works (isbn, nielsen_id)
-                VALUES (?, ?); """
-        values = []
-        for node in graph.nodes:
-            if node in graph.works and graph.works[node]:
-                i += 1
-                values.append((node, graph.works[node]))
-                if i % 1000 == 0:
-                    self.cursor.executemany(query, values)
-                    values = []
-        if values: self.cursor.executemany(query, values)
-        self.conn.commit()
-        print('{} new work relationships added to graph'.format(str(i)))
-
         self.clean()
-
-        self.dump_table('isbns')
-        self.dump_table('adjacencies')
-        self.dump_table('works')
-
-        # Display graph properties
-        self.count_nodes()
-        self.count_adjacencies()
-        self.count_works()
+        self.dump_database()
 
 
 # ====================
-#      Functions
+#  Control functions
 # ====================
 
 
-def export_database():
-
+def parse_marc(input_path, skip_check=True) -> None:
     db = IsbnDatabase()
+    db.add_marc(input_path, skip_check)
+    db.close()
+
+
+def parse_nielsen(input_path, skip_check=True) -> None:
+    db = IsbnDatabase()
+    db.add_nielsen(input_path, skip_check)
+    db.close()
+
+
+def search_isbns(input_path, skip_check=True) -> None:
+    db = IsbnDatabase()
+    db.search_for_isbns(input_path)
+    db.close()
+
+
+def index(input_path, skip_check=True) -> None:
+    db = IsbnDatabase()
+    db.build_indexes()
+    db.close()
+
+
+def export_graph(input_path, skip_check=True) -> None:
+    db = IsbnDatabase()
+    db.clean()
+    db.dump_database()
     for f in ISBN_FORMATS:
         db.write_isbns_by_format(f=f)
     db.write_adjacencies()
     db.close()
-
-
-def search_for_isbns(path):
-
-    db = IsbnDatabase()
-
-    connected_components = {}
-    isbn_list = set()
-    ifile = open(path, mode='r', encoding='utf-8', errors='replace')
-    for filelineno, line in enumerate(ifile):
-        line = line.strip()
-        isbn = Isbn(line)
-        if isbn.isbn:
-            isbn_list.add(isbn.isbn)
-            if isbn.isbn not in connected_components: connected_components[isbn.isbn] = set()
-    ifile.close()
-
-    for u in connected_components:
-        for v in connected_components:
-            if u in connected_components[v]:
-                connected_components[u] = connected_components[v]
-                connected_components[u].add(v)
-                break
-        if not connected_components[u]:
-            connected_components[u] = db.node_connected_component(u)
-
-    formats = db.get_formats([u for u in connected_components])
-    works = db.get_works([u for u in isbn_list])
-
-    ofile = open(path.replace('.txt', '_out.txt'), mode='w', encoding='utf-8', errors='replace')
-    ofile.write('Input ISBN\t13-digit ISBN\tPrefix\tFormat\tValid?\tNielsen Work ID\tRelated ISBNs\n')
-    ifile = open(path, mode='r', encoding='utf-8', errors='replace')
-
-    for filelineno, line in enumerate(ifile):
-        line = line.strip()
-        isbn = Isbn(line)
-        if isbn.isbn in formats: isbn.format = formats[isbn.isbn]
-        if works and isbn.isbn in works: isbn.work = works[isbn.isbn]
-        ofile.write('{}\t{}\t{}\n'.format(line, str(isbn),
-                                          ';'.join(sorted(connected_components[isbn.isbn])) if isbn.isbn else ''))
-    ifile.close()
-    ofile.close()
-
-    db.close()
-
 
 
 

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 
 """Classes for making multiple regex replacements."""
 
-import regex as re
 import sys
+
+import regex as re
 
 __author__ = 'Victoria Morris'
 __license__ = 'MIT License'

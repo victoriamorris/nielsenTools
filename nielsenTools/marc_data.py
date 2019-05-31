@@ -1,17 +1,9 @@
-#  -*- coding: utf8 -*-
+#  -*- coding: utf-8 -*-
 
 """MARC record processing tools used within nielsenTools."""
 
 # Import required modules
-import datetime
-import os
-import gc
-import glob
-import regex as re
-from nielsenTools.functions import *
 from nielsenTools.database_tools import *
-from nielsenTools.isbn_tools import *
-from nielsenTools.network_tools import *
 
 __author__ = 'Victoria Morris'
 __license__ = 'MIT License'
@@ -372,7 +364,15 @@ class Field(object):
             return (self.data + END_OF_FIELD).encode('utf-8')
         marc = self.indicator1 + self.indicator2
         for subfield in self:
-            marc += SUBFIELD_INDICATOR + subfield[0] + subfield[1]
+            try: marc += SUBFIELD_INDICATOR + subfield[0] + subfield[1]
+            except Exception as e:
+                print(str(e))
+                try: print('SUBFIELD 1: {}\n'.format(subfield[0]))
+                except: pass
+                try:
+                    print('SUBFIELD 2: {}\n'.format(subfield[1]))
+                except: pass
+                print(str(self.tag))
         return (marc + END_OF_FIELD).encode('utf-8')
 
 

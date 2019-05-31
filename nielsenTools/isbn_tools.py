@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 
 # ====================
 #       Set-up
@@ -142,28 +142,29 @@ class Isbn(object):
 
     def __init__(self, content, format='U'):
         self.valid = True
-        self.isbn = re.sub(r'[^0-9X]', '', content.upper())
-        if is_isbn_10(self.isbn):
-            self.isbn = isbn_convert(self.isbn)
-        if not is_isbn_13(self.isbn):
-            self.valid = False
-            if not (len(self.isbn) == 10 or len(self.isbn) == 13):
-                self.isbn = None
         self.format = format
-        self.prefix = isbn_prefix(self.isbn)
-        self.work = None
+        if self.format not in ISBN_FORMATS:
+            self.isbn = content.strip()
+            self.prefix = ''
+            self.valid = True
+        else:
+            self.isbn = re.sub(r'[^0-9X]', '', content.upper())
+            if is_isbn_10(self.isbn):
+                self.isbn = isbn_convert(self.isbn)
+            if not is_isbn_13(self.isbn):
+                self.valid = False
+                if not (len(self.isbn) == 10 or len(self.isbn) == 13):
+                    self.isbn = None
+            self.prefix = isbn_prefix(self.isbn)
 
-        if get_resource_format(content):
-            self.format = get_resource_format(content)
+            if get_resource_format(content):
+                self.format = get_resource_format(content)
 
     def set_format(self, format):
         self.format = format
 
-    def set_work(self, work):
-        self.work = work
-
     def __str__(self):
-        return '{}\t{}\t{}\t{}\t{}'.format(self.isbn, self.prefix, self.format, str(self.valid), str(self.work))
+        return '{}\t{}\t{}\t{}'.format(self.isbn, self.prefix, self.format, str(self.valid))
 
 
 # ====================

@@ -1,15 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 
 # ====================
 #       Set-up
 # ====================
 
 # Import required modules
-from collections import Mapping, Set
-import datetime
-import pyperclip
-import sqlite3
 from nielsenTools.isbn_tools import *
 
 __author__ = 'Victoria Morris'
@@ -30,7 +26,6 @@ class Graph:
         self.adjacencies = {}
         self.formats = {}
         self.checked = {}
-        self.works = {}
         self.skip_check = skip_check
 
     def __contains__(self, node):
@@ -39,14 +34,13 @@ class Graph:
     def __iter__(self):
         return iter(self.nodes)
 
-    def add_node(self, node, format='U', work=None):
+    def add_node(self, node, format='U'):
 
         if node not in self.nodes:
             self.nodes.add(node)
             self.adjacencies[node] = set()
             self.formats[node] = format
             self.checked[node] = True if self.formats[node] == 'C' else False
-            if work: self.works[node] = work
             return
         if format == 'C':
             self.formats[node] = 'C'
@@ -94,18 +88,14 @@ class Graph:
     
     def add_nodes(self, nodes):        
         for n in nodes:
-            try: node, format, work = n
-            except:
-                node, format = n
-                work = None
-            self.add_node(node, format, work)
+            node, format = n
+            self.add_node(node, format)
 
     def remove_node(self, node):
         self.nodes.discard(node)
         self.adjacencies.pop(node, None)
         self.formats.pop(node, None)
         self.checked.pop(node, None)
-        self.works.pop(node, None)
         for n in self.adjacencies:
             self.adjacencies[n].discard(node)
 
@@ -152,7 +142,7 @@ class Graph:
                     file.write(node + '\n')
             file.close()
 
-        file = open(path.replace('.graph', '_groups.txt'.format(f)), 'w', encoding='utf-8', errors='replace')
+        file = open(path.replace('.graph', '_groups.txt'), 'w', encoding='utf-8', errors='replace')
         for connected_component in sorted(self.connected_components(), key=len, reverse=True):
             file.write(' '.join(s + '|' + self.formats[s] for s in sorted(connected_component)) + '\n')
         for n in sorted(self.isolates()):
