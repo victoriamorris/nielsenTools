@@ -1,28 +1,16 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 
 # ====================
 #       Set-up
 # ====================
 
 # Import required modules
-from collections import OrderedDict
-import datetime
-import os
-import gc
 import getopt
-import glob
-from nielsenTools.marc_data import *
-from nielsenTools.database_tools import *
-from nielsenTools.nielsen_tools import *
-from nielsenTools.functions import *
-import locale
-import regex as re
-import sqlite3
-import sys
+from collections import OrderedDict
 
-# Set locale to assist with sorting
-locale.setlocale(locale.LC_ALL, '')
+from nielsenTools.database_tools import *
+from nielsenTools.functions import *
 
 # Set threshold for garbage collection (helps prevent the program run out of memory)
 gc.set_threshold(400, 5, 5)
@@ -42,9 +30,20 @@ OPTIONS = OrderedDict([
     ('M', 'Parse ISBNs from MARC field'),
     ('N', 'Parse ISBNs from Nielsen CSV file'),
     ('S', 'Search for ISBNs'),
+    ('I', 'build Indexes'),
     ('X', 'eXport graph'),
     ('E', 'Exit program'),
 ])
+
+
+ACTIONS = {
+    'M': parse_marc,
+    'N': parse_nielsen,
+    'S': search_isbns,
+    'I': index,
+    'X': export_graph,
+    'E': sys.exit,
+}
 
 
 # ====================
@@ -52,86 +51,41 @@ OPTIONS = OrderedDict([
 # ====================
 
 
-class OptionHandler():
+class OptionHandler:
 
-    def __init__(self, input_path, selected_option=None, skip_check=False, quit=False):
+    def __init__(self, input_path, selected_option=None, skip_check=False):
         self.input_path = input_path
         self.selection = None
-        if selected_option in OPTIONS:
-            self.selection = selected_option
-        else: self.get_selection()
         self.skip_check = skip_check
-        self.quit = quit
+        if selected_option in OPTIONS:
+            print('Option A')
+            self.selection = selected_option
+        else:
+            print('Option B')
+            self.get_selection()
 
     def get_selection(self):
-        print('\n')
-        print('----------------------------------------')
+        print('\n----------------------------------------')
         print('\n'.join('{}:\t{}'.format(opt, OPTIONS[opt]) for opt in OPTIONS))
-        self.selection = input('Choose an option:').upper()
+        self.selection = input('Choose an option:').upper().strip()
         while self.selection not in OPTIONS:
             self.selection = input('Sorry, your choice was not recognised. '
                                    'Please enter one of {}:'.format(', '.join(opt for opt in OPTIONS))).upper()
 
-
-    def set_selection(self, selected_option):
-        if selected_option in OPTIONS:
-            self.selection = selected_option
-
-    def execute(self, search_path=None):
+    def execute(self):
 
         if self.selection not in OPTIONS:
+            print('Option C')
             self.get_selection()
 
+        date_time_message(message(OPTIONS[self.selection]))
+
         if self.selection == 'E':
-            print('\n\nShutting down ...')
-            print('----------------------------------------')
-            print(str(datetime.datetime.now()))
             sys.exit()
 
-        if self.selection == 'X':
-            print('\n\nWriting graph ...')
-            print('----------------------------------------')
-            print(str(datetime.datetime.now()))
-            export_database()
-            self.input_path = None
-            self.selection = None
-            return
+        ACTIONS[self.selection](self.input_path, self.skip_check)
+        return
 
-        if self.selection == 'M':
-            print('\n\nParsing MARC files ...')
-            print('----------------------------------------')
-            print(str(datetime.datetime.now()))
-            while self.input_path is None:
-                self.input_path = input('Please enter the file path: ').strip('"')
-            add_from_marc_files(self.input_path, self.skip_check)
-            self.input_path = None
-            self.selection = None
-            return
-
-        if self.selection == 'N':
-            print('\n\nParsing Nielsen files ...')
-            print('----------------------------------------')
-            print(str(datetime.datetime.now()))
-            while self.input_path is None:
-                self.input_path = input('Please enter the file path: ').strip('"')
-            add_from_nielsen_files(self.input_path, self.skip_check)
-            self.input_path = None
-            self.selection = None
-            return
-
-        if self.selection == 'S':
-            print('\n\nSearching for ISBNs ...')
-            print('----------------------------------------')
-            print(str(datetime.datetime.now()))
-            while search_path is None:
-                search_path = input('Please enter the file path: ').strip('"')
-            search_for_isbns(search_path)
-            self.input_path = None
-            self.selection = None
-            if self.quit: date_time_exit()
-            return
-
-        self.get_selection()
 
 # ====================
 #      Functions
@@ -141,19 +95,18 @@ class OptionHandler():
 def usage():
     """Function to print information about the program"""
     print('Correct syntax is:')
-    print('nielsen_isbn_analysis [options]')
-    print('\nOptions')
-    print('AT MOST ONE of the following:')
-    print('    -m    path to folder containing MARC files to be parsed')
-    print('          Input file names should end .lex')
-    print('    -n    path to folder containing Nielsen files to be parsed')
-    print('          Input file names should end .add, .upd or .del')
-    print('    -s    path to file containing ISBNs to be searched for')
-    print('    -x    eXport graph')
-    print('ANY of the following:')
-    print('    --help    Display this message and exit')
-    print('\nIf no options are specified, -n is assumed, with input folder Input\ISBNs')
+    print('nielsen_isbn_analysis -i <input_path> [options]')
+    print('    -i    path to FOLDER containing Input files')
+    print('If not specified, input path will be /Input/Clusters')
     print('\nUse quotation marks (") around arguments which contain spaces')
+    print('\nInput file names should end .add, .upd or .del')
+    print('\nOptions')
+    print('EXACTLY ONE of the following:')
+    for o in OPTIONS:
+        print('    -{}    {}'.format(o.lower(), OPTIONS[o]))
+    print('ANY of the following:')
+    print('    -c        Check ISBN format conflicts using Google Books API')
+    print('    --help    Display this message and exit')
     exit_prompt()
 
 
@@ -166,13 +119,11 @@ def main(argv=None):
     if argv is None:
         name = str(sys.argv[1])
 
-    dir = os.path.dirname(os.path.realpath(sys.argv[0]))
-    input_path = os.path.join(dir, 'Input', 'ISBNs')
-
-    search_list = None
-    selected_option = 'N'
+    selected_option = None
     skip_check = True
-    quit = True
+
+    dir = os.path.dirname(os.path.realpath(sys.argv[0]))
+    input_path = os.path.join(dir, 'Input', 'Clusters')
 
     print('========================================')
     print('nielsen_isbn_analysis')
@@ -180,55 +131,36 @@ def main(argv=None):
     print('\nThis program collects ISBN cluster information\n'
           'from Nielsen CSV files\n')
 
-    try:
-        opts, args = getopt.getopt(argv, 'cn:m:qs:x', ['mpath=', 'npath=', 'search_list=', 'help'])
+    try: opts, args = getopt.getopt(argv, 'i:c' + ''.join(o.lower() for o in OPTIONS),
+                                    ['input_path=', 'help'])
     except getopt.GetoptError as err:
         exit_prompt('Error: {}'.format(err))
     for opt, arg in opts:
         if opt == '--help': usage()
-        elif opt in ['-m', '--mpath']:
-            selected_option = 'M'
-            input_path = arg
-        elif opt in ['-n', '--npath']:
-            selected_option = 'N'
-            input_path = arg
-        elif opt in ['-s', '--search_list']:
-            selected_option = 'S'
-            quit = True
-            search_list = arg
-        elif opt == '-x': selected_option = 'X'
+        elif opt in ['-i', '--input_path']: input_path = arg
         elif opt == '-c': skip_check = False
-        elif opt == '-q': quit = False
+        elif opt.upper().strip('-') in OPTIONS:
+            selected_option = opt.upper().strip('-')
         else: exit_prompt('Error: Option {} not recognised'.format(opt))
 
     # Check that files exist
-
-    if selected_option in ['M', 'N']:
-        if not input_path:
-            exit_prompt('Error: No path to input files has been specified')
-        if not os.path.isdir(input_path):
-            exit_prompt('Error: Invalid path to input files')
-
+    if not input_path:
+        exit_prompt('Error: No path to input files has been specified')
+    if not os.path.isdir(input_path):
+        exit_prompt('Error: Invalid path to input files')
     if not os.path.isfile(DATABASE_PATH):
         exit_prompt('Error: The file {} cannot be found'.format(DATABASE_PATH))
-    if skip_check: print('ISBN formats will not be checked')
 
-    # --------------------
-    # Parameters seem OK => start program
-    # --------------------
+    if skip_check: print('ISBN format conflicts will not be checked')
 
-    # Display confirmation information about the transformation
-
-    if selected_option in ['M', 'N']:
-        print('Input folder: {}'.format(input_path))
-
-    option = OptionHandler(input_path, selected_option, skip_check, quit)
+    option = OptionHandler(input_path, selected_option, skip_check)
 
     while option.selection:
-        option.execute(search_path=search_list)
+        option.execute()
         option.get_selection()
 
     date_time_exit()
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])
