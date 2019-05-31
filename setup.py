@@ -4,7 +4,6 @@
 """setup.py file for nielsenTools."""
 
 # Import required modules
-import regex as re
 from distutils.core import setup
 import py2exe
 
@@ -25,6 +24,8 @@ requirements = [
     'py2exe',
     'regex',
     'pyperclip',
+    'sqlite3',
+    'csv',
 ]
 
 # Setup
@@ -33,6 +34,7 @@ setup(
         'bin/nielsen2marc_products.py',
         'bin/nielsen2marc_organisations.py',
         'bin/nielsen_isbn_analysis.py',
+        'bin/nielsen2marc_clusters.py',
     ],
     zipfile=None,
     options={
@@ -52,6 +54,7 @@ setup(
         'bin/nielsen2marc_products.py',
         'bin/nielsen2marc_organisations.py',
         'bin/nielsen_isbn_analysis.py',
+        'bin/nielsen2marc_clusters.py',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

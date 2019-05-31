@@ -4,7 +4,8 @@ Tools for working with data feeds from Nielsen
 ## Requirements
 
 Requires the regex module from https://bitbucket.org/mrabarnett/mrab-regex. The built-in re module is not sufficient.
-Also requires the pyperclip module (https://pypi.org/project/pyperclip/).
+
+Also requires the pyperclip module (https://pypi.org/project/pyperclip/), sqlite3 and csv.
 
 ## Installation
 
@@ -47,24 +48,7 @@ Converts Nielsen records for **organisations** (publishers, imprints and distrib
     Options:
         --help    Show help message and exit.
       
-Input files must be **tagged** files; the file names should begin 31_ and end .upd.
-
-##### Example tagged record:
-
-    $
-    *a
-    ORGID 198352
-    ORGN Lickle Publishing, Inc
-    ORGAL1 568 Island Drive
-    ORGAT Palm Beach
-    ORGACOS FL
-    ORGAPC 33480
-    ORGCTRY United States of America
-    ORGPREF 09650308 1890674
-    ORGTEL1 +1  561 881 0450
-    ORGEMAIL1 wlickle@licklepub.com
-    ORGFAX1 +1   561 881 0818
-    ORGURL1 www.licklepub.com
+Input files must be **tab-delimited** files; the file names should end .add, .upd, or .del.
 
 ##### NOTE:
 
@@ -84,12 +68,17 @@ Converts Nielsen records for **products** (books, etc.) to MARC Bibliographic fo
     If not specified, output path will be /Output/Products
     
     Options:
-        --help    Show help message and exit.
+        --help  Show help message and exit.
+        --database  Add ISBN information to database
 
 Input files must be **tab-delimited** files; the file names should end .add, .upd, or .del.
 
-As records are parsed, information about related ISBNs and Nielsen Work IDs will be added to the ISBN database in \Database\isbns.db;
-it is essential that this database file is present, in the location specified.
+###### If option --database is specified:
+
+As records are parsed, information about related ISBNs will be added to the ISBN database in **isbns.db**;
+it is essential that this database file is present in the folder in which the script is run.
+
+This option will make the program run increasingly slowly as the size of the database increases.
 
 ##### NOTE:
 
@@ -97,29 +86,40 @@ Records for products contain ORGIDs, to link them to organisations (see above).
 However, the ORGID is **not** a permanent or persistent identifier, and may change; 
 therefore this number should be used as a *current* link, not a *permanent* one.
 
+#### nielsen2marc_clusters
+
+Converts Nielsen CSV files for **clusters** to MARC 21 (Bibliographic) format.
+
+    Usage: nielsen2marc_clusters.exe -i <input_path> -o <output_path>
+
+        -i    path to FOLDER containing Input files
+        -o    path to FOLDER to contain Output files
+    If not specified, input path will be /Input/Products
+    If not specified, output path will be /Output/Products
+
+    Options:
+        --help  Show help message and exit.
+
+Input files must be **comma-delimited** files; the file names should end .add, .upd, or .del.
+
 #### nielsen_isbn_analysis
 
 Various options allow for the identification of clusters of related ISBNs.
 
 ##### Option 1: to add ISBNs from Nielsen data feeds to the database:
 
-    Usage: nielsen_isbn_analysis.exe -n <input_path>
+    Usage: nielsen_isbn_analysis.exe -i <input_path> -n
     
-        -n    path to FOLDER containing Nielsen Input files
-    If no options are specified, -n is assumed, with input folder Input\ISBNs
+        -i    path to FOLDER containing Nielsen Input files
+    If not specified, input path will be /Input/Clusters
     
-##### Option 2: to add ISBNs from MARC (.lex) files to the database:
+##### Option 2: search for information about a list of ISBNs
 
-    Usage: nielsen_isbn_analysis.exe -m <input_path>
+    Usage: nielsen_isbn_analysis.exe -i <input_path> -s
     
-        -m    path to FOLDER containing MARC Input files
-
-##### Option 3: search for information about a list of ISBNs
-
-    Usage: nielsen_isbn_analysis.exe -s <search_list>
-    
-        -s    path to FILE containing list of ISBNs to search for.
-        This must be a text (.txt) file, with one ISBN per line.
+        -s    path to FOLDER containing lists of ISBNs to search for.
+    If not specified, input path will be /Input/Search_lists
+    Input files must be text (.txt) files, with one ISBN per line.
 
 Search results will be written to a file with the name of the form <search_list>_out.txt, in the same folder as the input file.
 The output file will include the following columns:
@@ -134,8 +134,7 @@ The output file will include the following columns:
     * C - collective
     * O - other
     * X - contradiction 
-* Valid? - either True or False, to indicate whether the ISBN is strucurally valid.
-* Nielsen Work ID - Nielsen ID for the work of which the publication is a manifestation, if known.
+* Valid? - either True or False, to indicate whether the ISBN is structurally valid.
 * Related ISBNs - a semi-colon-separated list.
     
 ##### Notes
@@ -145,5 +144,5 @@ via the URL https://www.googleapis.com/books/v1/.
 If the option -c is specified, the user will be given the option to check ISBN formats manually, where a format conflict arises.
 The user will be prompted to enter a format code for a specific ISBN, which will be copied to the clipboard to facilitate catalogue/online searching.
 
-In all cases, information about related ISBNs and Nielsen Work IDs will be stored/retrieved from the ISBN database in \Database\isbns.db;
-it is essential that this database file is present, in the location specified.
+In all cases, information about related ISBNs will be stored/retrieved from the ISBN database named isbns.db;
+it is essential that this database file is present in the folder in which the script is run.
