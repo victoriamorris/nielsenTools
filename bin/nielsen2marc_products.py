@@ -817,7 +817,7 @@ class NielsenTSVProducts:
             if self.values[c]:
                 record.add_field(Field('500', [' ', ' '], ['a', '{}{}.'.format(PREAMBLES[c], self.values[c])]))
                 if c in ['IMPID', 'PUBID']:
-                    record.add_field(Field('N{}I'.format(c[0]), [' ', ' '], ['a', v], ['d', datetime.date.today()]))
+                    record.add_field(Field('N{}I'.format(c[0]), [' ', ' '], ['a', self.values[c]], ['d', datetime.date.today()]))
 
         # PFDT*     Product Form Detail: Text Description
         # PFFSD*    Product Form Feature Safety Type: Text Description
