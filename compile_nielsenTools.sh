@@ -1,23 +1,19 @@
-#!/bin/bash
-#
-function pause(){
-   read -p "$*"
-}
 python setup.py install
-python setup.py py2exe
-mv dist/nielsen2marc_products.exe nielsen2marc_products.exe
-mv dist/nielsen2marc_organisations.exe nielsen2marc_organisations.exe
+pyinstaller bin/nielsen_isbn_analysis.py -F
+pyinstaller bin/nielsen2marc_clusters.py -F
+pyinstaller bin/nielsen2marc_organisations.py -F
+pyinstaller bin/nielsen2marc_products.py -F
+read -p "Press [Enter]"
+rm -rf bin/__pycache__
 mv dist/nielsen_isbn_analysis.exe nielsen_isbn_analysis.exe
 mv dist/nielsen2marc_clusters.exe nielsen2marc_clusters.exe
-cp nielsen2marc_products.exe ../nielsen2marc_products.exe
-cp nielsen2marc_organisations.exe ../nielsen2marc_organisations.exe
-cp nielsen_isbn_analysis.exe ../nielsen_isbn_analysis.exe
-cp nielsen2marc_clusters.exe ../nielsen2marc_clusters.exe
+mv dist/nielsen2marc_organisations.exe nielsen2marc_organisations.exe
+mv dist/nielsen2marc_products.exe nielsen2marc_products.exe
 rmdir dist
-rm bin/__pycache__/nielsen2marc_products.cpython-34.pyc
-rm bin/__pycache__/nielsen2marc_organisations.cpython-34.pyc
-rm bin/__pycache__/nielsen_isbn_analysis.cpython-34.pyc
-rm bin/__pycache__/nielsen2marc_clusters.cpython-34.pyc
-rmdir bin/__pycache__
+rm -rf __pycache__
 rm -rf build
-pause 'Press [Enter] key to continue...'
+rm nielsen_isbn_analysis.spec
+rm nielsen2marc_clusters.spec
+rm nielsen2marc_organisations.spec
+rm nielsen2marc_products.spec
+read -p "Press [Enter]"

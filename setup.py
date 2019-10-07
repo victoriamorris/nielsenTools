@@ -5,7 +5,6 @@
 
 # Import required modules
 from distutils.core import setup
-import py2exe
 
 __author__ = 'Victoria Morris'
 __license__ = 'MIT License'
@@ -21,7 +20,6 @@ long_description = ''
 # List requirements.
 # All other requirements should all be contained in the standard library
 requirements = [
-    'py2exe',
     'regex',
     'pyperclip',
     'sqlite3',
@@ -37,11 +35,6 @@ setup(
         'bin/nielsen2marc_clusters.py',
     ],
     zipfile=None,
-    options={
-        'py2exe': {
-            'bundle_files': 0,
-        }
-    },
     name='nielsenTools',
     version=version,
     author='Victoria Morris',
@@ -63,5 +56,5 @@ setup(
         'Natural Language :: English',
         'Programming Language :: Python'
     ],
-    requires=requirements
+    requires=requirements,
 )

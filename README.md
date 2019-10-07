@@ -7,6 +7,8 @@ Requires the regex module from https://bitbucket.org/mrabarnett/mrab-regex. The 
 
 Also requires the pyperclip module (https://pypi.org/project/pyperclip/), sqlite3 and csv.
 
+PyInstaller (https://pypi.org/project/PyInstaller/) is required to create stand-alone executable files.
+
 ## Installation
 
 From GitHub:
@@ -20,7 +22,10 @@ To install as a Python package:
     
 To create stand-alone executable (.exe) files for individual scripts:
 
-    python setup.py py2exe 
+    pyinstaller bin/nielsen_isbn_analysis.py -F
+    pyinstaller bin/nielsen2marc_clusters.py -F
+    pyinstaller bin/nielsen2marc_organisations.py -F
+    pyinstaller bin/nielsen2marc_products.py -F 
     
 Executable files will be created in the folder \dist, and should be copied to an executable path.
 
@@ -69,16 +74,8 @@ Converts Nielsen records for **products** (books, etc.) to MARC Bibliographic fo
     
     Options:
         --help  Show help message and exit.
-        --database  Add ISBN information to database
 
 Input files must be **tab-delimited** files; the file names should end .add, .upd, or .del.
-
-###### If option --database is specified:
-
-As records are parsed, information about related ISBNs will be added to the ISBN database in **isbns.db**;
-it is essential that this database file is present in the folder in which the script is run.
-
-This option will make the program run increasingly slowly as the size of the database increases.
 
 ##### NOTE:
 
@@ -100,11 +97,13 @@ Converts Nielsen CSV files for **clusters** to MARC 21 (Bibliographic) format.
     Options:
         --help  Show help message and exit.
 
-Input files must be **comma-delimited** files; the file names should end .add, .upd, or .del.
+Input files must be **tab-delimited** files; the file names should end .add, .upd, or .del.
 
 #### nielsen_isbn_analysis
 
 Various options allow for the identification of clusters of related ISBNs.
+
+The database file **isbns.db** must be present in the folder in which the script is run.
 
 ##### Option 1: to add ISBNs from Nielsen data feeds to the database:
 
@@ -117,7 +116,7 @@ Various options allow for the identification of clusters of related ISBNs.
 
     Usage: nielsen_isbn_analysis.exe -i <input_path> -s
     
-        -s    path to FOLDER containing lists of ISBNs to search for.
+        -i    path to FOLDER containing lists of ISBNs to search for.
     If not specified, input path will be /Input/Search_lists
     Input files must be text (.txt) files, with one ISBN per line.
 
