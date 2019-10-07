@@ -64,7 +64,7 @@ class Graph:
             try: e = query(node)
             except: pass
             else:
-                print('Resoved format of {} using Google Books'.format(node))
+                print('Resolved format of {} using Google Books'.format(node))
                 if e:
                     self.formats[node] = 'P'
                     self.checked[node] = False

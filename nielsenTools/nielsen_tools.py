@@ -408,13 +408,13 @@ COUNTRY_CODES = {
 
 DISTRIBUTION_AREAS = {
     'UK': ['United Kingdom', 'GBP', 'xxk'],
-    # 'US': ['United States', 'USD', 'xxu'],
-    # 'AUS': ['Australia', 'AUD', 'at'],
-    # 'NZ': ['New Zealand', 'NZD', 'nz'],
-    # 'SA': ['South Africa', 'ZAR', 'sa'],
-    # 'EUR': ['Europe', 'EUR'],
-    # 'IN': ['India', 'INR', 'ii'],
-    # 'CAN': ['Canada', 'CAD', 'xxc'],
+    'US': ['United States', 'USD', 'xxu'],
+    'AUS': ['Australia', 'AUD', 'at'],
+    'NZ': ['New Zealand', 'NZD', 'nz'],
+    'SA': ['South Africa', 'ZAR', 'sa'],
+    'EUR': ['Europe', 'EUR'],
+    'IN': ['India', 'INR', 'ii'],
+    'CAN': ['Canada', 'CAD', 'xxc'],
     'IRL':  ['Ireland', 'EUR', 'ie']
 }
 
@@ -1030,6 +1030,8 @@ class ContribName:
 
         self.surname = clean('{} {}'.format(self.name['ICKN'] or '', self.name['ICNAK'] or ''))
         self.forename = clean('{} {}'.format(self.name['ICFN'] or '', self.name['ICKNP'] or ''))
+        if self.forename:
+            self.forename = re.sub(r'([A-Z]\.)([A-Z])', r'\1 \2', self.forename)
 
     def __str__(self):
         s = clean('{} {} {} {} {} {}'.format(self.name['ICTBN'] or '', self.name['ICFN'] or '', self.name['ICKNP'] or '',
@@ -1039,7 +1041,7 @@ class ContribName:
 
     def as_marc(self, tag_start='1'):
         if not str(self): return None
-        s = '{}, {}'.format(self.surname, self.forename).strip(',').strip()
+        s = re.sub(r'\b([A-Z])$', r'\1.', '{}, {}'.format(self.surname or '', self.forename or '').strip().strip(',').strip())
         s += ',' if any(self.name[p] for p in ['ICTBN', 'ICKNS', 'ICTAN', 'ICCY', 'CRT']) else '.'
         subfields = ['a', s]
         if self.name['ICTBN']:
@@ -1068,7 +1070,7 @@ class NielsenCluster:
         if self.isbn:
             self.alternative_formats.add(self.isbn)
 
-        for letter in ['I', 'W']:
+        for letter in ['I', 'P', 'W']:
             for i in range(1, 10):
                 try: related_id = clean(self.row['R{}I{}'.format(letter, str(i))])
                 except: related_id = None
@@ -1105,4 +1107,10 @@ class NielsenCluster:
                             self.isbns.add('{}:{}'.format(related_id_type_name, isbn.isbn))
 
     def get_alternative_formats(self):
+        # print(str(len(self.alternative_formats)))
         return self.alternative_formats
+
+    def get_related(self):
+        union = self.alternative_formats
+        union.add(self.isbn)
+        return union

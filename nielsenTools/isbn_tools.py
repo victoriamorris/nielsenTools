@@ -9,7 +9,6 @@
 import pyperclip
 import regex as re
 
-
 __author__ = 'Victoria Morris'
 __license__ = 'MIT License'
 __version__ = '1.0.0'
@@ -146,7 +145,7 @@ class Isbn(object):
         if self.format not in ISBN_FORMATS:
             self.isbn = content.strip()
             self.prefix = ''
-            self.valid = True
+            self.valid = False
         else:
             self.isbn = re.sub(r'[^0-9X]', '', content.upper())
             if is_isbn_10(self.isbn):
@@ -223,6 +222,11 @@ def isbn_convert(isbn10):
     """Function to convert a 10-digit ISBN to a 13-digit ISBN"""
     if not is_isbn_10(isbn10): return None
     return '978' + isbn10[:-1] + isbn_13_check_digit('978' + isbn10[:-1])
+
+def isbn13_convert(isbn13):
+    """Function to convert a 13-digit ISBN to a 10-digit ISBN"""
+    if not is_isbn_13(isbn13): return None
+    return isbn13[3:-1] + isbn_10_check_digit(isbn13[3:-1])
 
 
 def get_resource_format(s):

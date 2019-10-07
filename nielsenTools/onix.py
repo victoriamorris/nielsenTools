@@ -83,145 +83,145 @@ ONIX_PRODUCT_RELATION = {
 # List 150	Product form
 # ONIX product form code:   (008/23)
 ONIX_PRODUCT_FORM = {
-    '00':	['', 'unspecified', 'unspecified', 'unspecified'],  # Undefined
-    'AA':	['', 'spoken word', 'audio', 'unspecified', 'i'],        # Audio                    ########## MUSIC ##########
-    'AB':	['', 'spoken word', 'audio', 'audiocassette', 'i'],      # Audio cassette           #
-    'AC':	['', 'spoken word', 'audio', 'audio disc', 'i'],         # CD-Audio                 #
-    'AD':	['', 'spoken word', 'audio', 'other', 'i'],              # DAT                      #
-    'AE':	['', 'spoken word', 'audio', 'audio disc', 'i'],         # Audio disc               #
-    'AF':	['', 'spoken word', 'audio', 'audiotape reel', 'i'],     # Audio tape               #
-    'AG':	['', 'spoken word', 'audio', 'audio disc', 'i'],         # MiniDisc                 #
-    'AH':	['', 'spoken word', 'audio', 'audio disc', 'i'],         # CD-Extra                 #
-    'AI':	['', 'spoken word', 'audio', 'audio disc', 'i'],         # DVD Audio                #
-    'AJ':	['', 'spoken word', 'audio', 'online resource', 'i'],    # Downloadable audio file  #
-    'AK':	['', 'spoken word', 'unmediated', 'other', 'i'],         # Pre-recorded digital audio player
-    'AL':	['', 'spoken word', 'audio', 'computer card', 'i'],      # Pre-recorded SD card     #
-    'AM':	['', 'spoken word', 'audio', 'audio disc', 'i'],         # LP                       #
-    'AN':	['', 'spoken word', 'audio', 'online resource', 'i'],    # Downloadable and online audio file
-    'AO':	['', 'spoken word', 'audio', 'online resource', 'i'],    # Online audio file        #
-    'AZ':	['', 'spoken word', 'audio', 'other', 'i'],              # Other audio format       ########## MUSIC ##########
-    'BA':	['r', 'text', 'unmediated', 'volume', 'a'],  # Book                    ########## BOOK ##########
-    'BB':	['r', 'text', 'unmediated', 'volume', 'a'],  # Hardback                #
-    'BC':	['r', 'text', 'unmediated', 'volume', 'a'],  # Paperback / softback    #
-    'BD':	['r', 'text', 'unmediated', 'sheet', 'a'],   # Loose-leaf              #
-    'BE':	['r', 'text', 'unmediated', 'volume', 'a'],  # Spiral bound            #
-    'BF':	['r', 'text', 'unmediated', 'volume', 'a'],  # Pamphlet                #
-    'BG':	['r', 'text', 'unmediated', 'volume', 'a'],  # Leather / fine binding  #
-    'BH':	['r', 'text', 'unmediated', 'volume', 'a'],  # Board book              #
-    'BI':	['r', 'text', 'unmediated', 'volume', 'a'],  # Rag book                #
-    'BJ':	['r', 'text', 'unmediated', 'volume', 'a'],  # Bath book               #
-    'BK':	['r', 'text', 'unmediated', 'volume', 'a'],  # Novelty book            #
-    'BL':	['r', 'text', 'unmediated', 'volume', 'a'],  # Slide bound             #
-    'BM':	['r', 'text', 'unmediated', 'volume', 'a'],  # Big book                #
-    'BN':	['r', 'text', 'unmediated', 'volume', 'a'],  # Part-work (fascículo)   #
-    'BO':	['r', 'text', 'unmediated', 'volume', 'a'],  # Fold-out book or chart  #
-    'BP':	['r', 'text', 'unmediated', 'volume', 'a'],  # Foam book               #
-    'BZ':	['r', 'text', 'unmediated', 'volume', 'a'],  # Other book format       ########## BOOK ##########
-    'CA':	['a', 'cartographic image', 'unmediated', 'sheet', 'e'],     # Sheet map                ########## MAP ##########
-    'CB':	['a', 'cartographic image', 'unmediated', 'sheet', 'e'],     # Sheet map, folded        #
-    'CC':	['a', 'cartographic image', 'unmediated', 'sheet', 'e'],     # Sheet map, flat          #
-    'CD':	['a', 'cartographic image', 'unmediated', 'roll', 'e'],      # Sheet map, rolled        #
-    'CE':	['d', 'cartographic three-dimensional form', 'unmediated', 'object', 'e'],  # Globe     #
-    'CZ':	['u', 'unspecified', 'unspecified', 'unspecified', 'e'],     # Other cartographic       ########## MAP ##########
-    'DA':	['', 'computer dataset', 'computer', 'unspecified', 'm'],        # Digital (on physical carrier)     ########## COMPUTER FILE ##########
-    'DB':	['', 'computer dataset', 'computer', 'computer disc', 'm'],      # CD-ROM                            #
-    'DC':	['', 'computer dataset', 'computer', 'computer disc', 'm'],      # CD-I                              #
-    'DE':	['', 'computer program', 'computer', 'other', 'm'],              # Game cartridge                    #
-    'DF':	['', 'computer dataset', 'computer', 'computer disc', 'm'],      # Diskette                          #
-    'DI':	['', 'computer dataset', 'computer', 'computer disc', 'm'],      # DVD-ROM                           #
-    'DJ':	['', 'computer dataset', 'computer', 'computer card', 'm'],      # Secure Digital (SD) Memory Card   #
-    'DK':	['', 'computer dataset', 'computer', 'computer card', 'm'],      # Compact Flash Memory Card         #
-    'DL':	['', 'computer dataset', 'computer', 'computer card', 'm'],      # Memory Stick Memory Card          #
-    'DM':	['', 'computer dataset', 'computer', 'other', 'm'],              # USB Flash Drive                   #
-    'DN':	['', 'computer dataset', 'computer', 'computer disc', 'm'],      # Double-sided CD/DVD               #
-    'DZ':	['', 'computer dataset', 'computer', 'other', 'm'],              # Other digital carrier             ########## COMPUTER FILE ##########
-    'EA':	['', 'computer dataset', 'computer', 'unspecified', 'm'],        # Digital (delivered electronically)#
-    'EB':	['', 'computer dataset', 'computer', 'online resource', 'm'],    # Digital download and online       #
-    'EC':	['', 'computer dataset', 'computer', 'online resource', 'm'],    # Digital online                    #
-    'ED':	['', 'computer dataset', 'computer', 'online resource', 'm'],    # Digital download                  ########## COMPUTER FILE ##########
-    'FA':	['t', 'still image', 'projected', 'unspecified', 'g'],           # Film or transparency              ########## VISUAL ##########
-    'FC':	['s', 'still image', 'projected', 'slide', 'g'],                 # Slides                            #
-    'FD':	['t', 'still image', 'projected', 'overhead transparency', 'g'], # OHP transparencies                #
-    'FE':	['f', 'still image', 'projected', 'filmstrip', 'g'],             # Filmstrip                         #
-    'FF':	['f', 'still image', 'projected', 'unspecified', 'g'],           # Film                              #
-    'FZ':	['t', 'still image', 'projected', 'unspecified', 'g'],           # Other film or transparency format ########## VISUAL ##########
-    'LA':	['', 'computer dataset', 'computer', 'unspecified', 'm'],        # Digital product license           ########## COMPUTER FILE ##########
-    'LB':	['', 'computer dataset', 'computer', 'unspecified', 'm'],        # Digital product license key       #
-    'LC':	['', 'computer dataset', 'computer', 'unspecified', 'm'],        # Digital product license code      ########## COMPUTER FILE ##########
-    'MA':	['a', 'text', 'microform', 'unspecified', 'a'],                  # Microform                ########## BOOK ##########
-    'MB':	['b', 'text', 'microform', 'microfiche', 'a'],                   # Microfiche               #
-    'MC':	['a', 'text', 'microform', 'microfilm reel', 'a'],               # Microfilm                #
-    'MZ':	['a', 'text', 'microform', 'unspecified', 'a'],                  # Other microform          ########## BOOK ##########
-    'PA':	['r', 'text', 'unmediated', 'unspecified', 'a'],                 # Miscellaneous print      ########## BOOK ##########
-    'PB':	['r', 'text', 'unmediated', 'volume', 'a'],                      # Address book             #
-    'PC':	['r', 'text', 'unmediated', 'other', 'a'],                       # Calendar                 #
-    'PD':	['r', 'text', 'unmediated', 'card', 'a'],                        # Cards                    #
-    'PE':	['r', 'text', 'unmediated', 'other', 'a'],                       # Copymasters              #
-    'PF':	['r', 'text', 'unmediated', 'volume', 'a'],                      # Diary                    ########## BOOK ##########
-    'PG':	['i', 'still image', 'unmediated', 'sheet', 'k'],                # Frieze                   ########## VISUAL ##########
-    'PH':	['b', 'three-dimensional form', 'unmediated', 'object', 'o'],    # Kit                      ########## VISUAL ##########
-    'PI':	['', 'notated music', 'unmediated', 'volume', 'c'],              # Sheet music              ########## MUSIC ##########
-    'PJ':	['i', 'still image', 'unmediated', 'card', 'k'],                 # Postcard book or pack    ########## VISUAL ##########
-    'PK':	['i', 'still image', 'unmediated', 'sheet', 'k'],                # Poster                   ########## VISUAL ##########
-    'PL':	['r', 'text', 'unmediated', 'volume', 'a'],                      # Record book              ########## BOOK ##########
-    'PM':	['z', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Wallet or folder         ########## VISUAL ##########
-    'PN':	['i', 'still image', 'unmediated', 'sheet', 'k'],                # Pictures or photographs  #
-    'PO':	['i', 'still image', 'unmediated', 'sheet', 'k'],                # Wallchart                #
-    'PP':	['z', 'still image', 'unmediated', 'other', 'k'],                # Stickers                 #
-    'PQ':	['z', 'still image', 'unmediated', 'other', 'k'],                # Plate (lámina)           ########## VISUAL ##########
-    'PR':	['r', 'text', 'unmediated', 'volume', 'a'],                      # Notebook / blank book    ########## BOOK ##########
-    'PS':	['r', 'text', 'unmediated', 'volume', 'a'],                      # Organizer                ########## BOOK ##########
-    'PT':	['r', 'text', 'unmediated', 'other', 'a'],                       # Bookmark                 ########## VISUAL ##########
-    'PU':	['r', 'text', 'unmediated', 'sheet', 'a'],                       # Leaflet                  ########## BOOK ##########
-    'PZ':	['r', 'text', 'unmediated', 'unspecified', 'a'],                 # Other printed item       ########## BOOK ##########
-    'SA':	['', 'unspecified', 'unspecified', 'unspecified'],          # Multiple-component retail product
-    'SB':	['', 'unspecified', 'unspecified', 'unspecified'],          # Multiple-component retail product, boxed
-    'SC':	['', 'unspecified', 'unspecified', 'unspecified'],          # Multiple-component retail product, slip-cased
-    'SD':	['', 'unspecified', 'unspecified', 'unspecified'],          # Multiple-component retail product, shrink-wrapped
-    'SE':	['', 'unspecified', 'unspecified', 'unspecified'],          # Multiple-component retail product, loose
-    'SF':	['', 'unspecified', 'unspecified', 'unspecified'],          # Multiple-component retail product, part(s) enclosed
-    'VA':	['v', 'three-dimensional moving image', 'video', 'unspecified'],    # Video                    ########## VISUAL ##########
-    'VF':	['v', 'three-dimensional moving image', 'video', 'videodisc'],      # Videodisc                #
-    'VI':	['v', 'three-dimensional moving image', 'video', 'videodisc'],      # DVD video                #
-    'VJ':	['v', 'three-dimensional moving image', 'video', 'videocassette'],  # VHS video                #
-    'VK':	['v', 'three-dimensional moving image', 'video', 'videocassette'],  # Betamax video            #
-    'VL':	['v', 'three-dimensional moving image', 'video', 'videodisc'],      # VCD                      #
-    'VM':	['v', 'three-dimensional moving image', 'video', 'videodisc'],      # SVCD                     #
-    'VN':	['v', 'three-dimensional moving image', 'video', 'videodisc'],      # HD DVD                   #
-    'VO':	['v', 'three-dimensional moving image', 'video', 'videodisc'],      # Blu-ray                  #
-    'VP':	['v', 'three-dimensional moving image', 'video', 'videodisc'],      # UMD Video                #
-    'VQ':	['v', 'three-dimensional moving image', 'video', 'videodisc'],      # CBHD                     #
-    'VZ':	['v', 'three-dimensional moving image', 'video', 'unspecified'],    # Other video format       ########## VISUAL ##########
-    'XA':	['', 'unspecified', 'unspecified', 'unspecified'],                  # Trade-only material
-    'XB':	['', 'unspecified', 'unmediated', 'object', 'r'],                # Dumpbin – empty
-    'XC':	['', 'unspecified', 'unmediated', 'object', 'r'],                # Dumpbin – filled
-    'XD':	['', 'unspecified', 'unmediated', 'object', 'r'],                # Counterpack – empty
-    'XE':	['', 'unspecified', 'unmediated', 'object', 'r'],                # Counterpack – filled
-    'XF':	['i', 'still image', 'unmediated', 'sheet', 'r'],                # Poster, promotional
-    'XG':	['', 'unspecified', 'unmediated', 'unspecified'],           # Shelf strip
-    'XH':	['', 'unspecified', 'unmediated', 'unspecified'],           # Window piece
-    'XI':	['', 'unspecified', 'unmediated', 'unspecified'],           # Streamer
-    'XJ':	['', 'unspecified', 'unmediated', 'unspecified'],           # Spinner
-    'XK':	['', 'unspecified', 'unmediated', 'object'],                # Large book display
-    'XL':	['', 'unspecified', 'unmediated', 'unspecified'],           # Shrink-wrapped pack
-    'XM':	['', 'unspecified', 'unmediated', 'unspecified'],           # Boxed pack
-    'XZ':	['', 'unspecified', 'unspecified', 'unspecified'],          # Other point of sale
-    'ZA':	['r', 'three-dimensional form', 'unmediated', 'object', 'r'],    # General merchandise
-    'ZB':	['w', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Doll
-    'ZC':	['w', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Soft toy
-    'ZD':	['w', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Toy
-    'ZE':	['g', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Game
-    'ZF':	['r', 'three-dimensional form', 'unmediated', 'object', 'r'],    # T-shirt
-    'ZG':	['', 'computer program', 'unmediated', 'object', 'm'],           # E-book reader
-    'ZH':	['', 'computer program', 'unmediated', 'object', 'm'],           # Tablet computer
-    'ZI':	['', 'computer program', 'unmediated', 'object', 'm'],           # Audiobook player
-    'ZJ':	['w', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Jigsaw
-    'ZK':	['r', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Mug
-    'ZL':	['r', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Tote bag
-    'ZM':	['r', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Tableware
-    'ZN':	['r', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Umbrella
-    'ZY':	['r', 'three-dimensional form', 'unmediated', 'object', 'r'],    # Other apparel
-    'ZZ':	['r', 'three-dimensional form', 'unmediated', 'unspecified', 'r'],  # Other merchandise
+    '00':	['', 'unspecified', 'unspecified', 'unspecified', None],  # Undefined
+    'AA':	['', 'spoken word', 'audio', 'unspecified', 'i', 'su |||||||||||'],        # Audio                    ########## MUSIC ##########
+    'AB':	['', 'spoken word', 'audio', 'audiocassette', 'i', 'ss |||||||||||'],      # Audio cassette           #
+    'AC':	['', 'spoken word', 'audio', 'audio disc', 'i', 'sd |||g|||||||'],         # CD-Audio                 #
+    'AD':	['', 'spoken word', 'audio', 'other', 'i', 'su |||||||||||'],              # DAT                      #
+    'AE':	['', 'spoken word', 'audio', 'audio disc', 'i', 'sd |||||||||||'],         # Audio disc               #
+    'AF':	['', 'spoken word', 'audio', 'audiotape reel', 'i', 'su |||||||||||'],     # Audio tape               #
+    'AG':	['', 'spoken word', 'audio', 'audio disc', 'i', 'sd |||||||||||'],         # MiniDisc                 #
+    'AH':	['', 'spoken word', 'audio', 'audio disc', 'i', 'sd |||g|||||||'],         # CD-Extra                 #
+    'AI':	['', 'spoken word', 'audio', 'audio disc', 'i', 'sd |||g|||||||'],         # DVD Audio                #
+    'AJ':	['', 'spoken word', 'audio', 'online resource', 'i', 'sr |||||||||||'],    # Downloadable audio file  #
+    'AK':	['', 'spoken word', 'unmediated', 'other', 'i', 'su |||||||||||'],         # Pre-recorded digital audio player
+    'AL':	['', 'spoken word', 'audio', 'computer card', 'i', 'su |||||||||||'],      # Pre-recorded SD card     #
+    'AM':	['', 'spoken word', 'audio', 'audio disc', 'i', 'sd |||||||||||'],         # LP                       #
+    'AN':	['', 'spoken word', 'audio', 'online resource', 'i', 'sr |||||||||||'],    # Downloadable and online audio file
+    'AO':	['', 'spoken word', 'audio', 'online resource', 'i', 'sr |||||||||||'],    # Online audio file        #
+    'AZ':	['', 'spoken word', 'audio', 'other', 'i', 'su |||||||||||'],              # Other audio format       ########## MUSIC ##########
+    'BA':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Book                    ########## BOOK ##########
+    'BB':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Hardback                #
+    'BC':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Paperback / softback    #
+    'BD':	['r', 'text', 'unmediated', 'sheet', 'a', 'td'],                           # Loose-leaf              #
+    'BE':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Spiral bound            #
+    'BF':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Pamphlet                #
+    'BG':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Leather / fine binding  #
+    'BH':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Board book              #
+    'BI':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Rag book                #
+    'BJ':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Bath book               #
+    'BK':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Novelty book            #
+    'BL':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Slide bound             #
+    'BM':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Big book                #
+    'BN':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Part-work (fascículo)   #
+    'BO':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Fold-out book or chart  #
+    'BP':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Foam book               #
+    'BZ':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                          # Other book format       ########## BOOK ##########
+    'CA':	['a', 'cartographic image', 'unmediated', 'sheet', 'e', 'aj |||||'],       # Sheet map                ########## MAP ##########
+    'CB':	['a', 'cartographic image', 'unmediated', 'sheet', 'e', 'aj |||||'],       # Sheet map, folded        #
+    'CC':	['a', 'cartographic image', 'unmediated', 'sheet', 'e', 'aj |||||'],       # Sheet map, flat          #
+    'CD':	['a', 'cartographic image', 'unmediated', 'roll', 'e', 'aj |||||'],        # Sheet map, rolled        #
+    'CE':	['d', 'cartographic three-dimensional form', 'unmediated', 'object', 'e', 'd| |||'],  # Globe     #
+    'CZ':	['u', 'unspecified', 'unspecified', 'unspecified', 'e', None],             # Other cartographic       ########## MAP ##########
+    'DA':	['', 'computer dataset', 'computer', 'unspecified', 'm', 'c| |||||||||||'],      # Digital (on physical carrier)     ########## COMPUTER FILE ##########
+    'DB':	['', 'computer dataset', 'computer', 'computer disc', 'm', 'cc |g|||||||||'],    # CD-ROM                            #
+    'DC':	['', 'computer dataset', 'computer', 'computer disc', 'm', 'cc |g|||||||||'],    # CD-I                              #
+    'DE':	['', 'computer program', 'computer', 'other', 'm', 'c| |||||||||||'],            # Game cartridge                    #
+    'DF':	['', 'computer dataset', 'computer', 'computer disc', 'm', 'c| |||||||||||'],    # Diskette                          #
+    'DI':	['', 'computer dataset', 'computer', 'computer disc', 'm', 'cc |g|||||||||'],    # DVD-ROM                           #
+    'DJ':	['', 'computer dataset', 'computer', 'computer card', 'm', 'c| |||||||||||'],    # Secure Digital (SD) Memory Card   #
+    'DK':	['', 'computer dataset', 'computer', 'computer card', 'm', 'c| |||||||||||'],    # Compact Flash Memory Card         #
+    'DL':	['', 'computer dataset', 'computer', 'computer card', 'm', 'c| |||||||||||'],    # Memory Stick Memory Card          #
+    'DM':	['', 'computer dataset', 'computer', 'other', 'm', 'c| |||||||||||'],            # USB Flash Drive                   #
+    'DN':	['', 'computer dataset', 'computer', 'computer disc', 'm', 'cc |g|||||||||'],    # Double-sided CD/DVD               #
+    'DZ':	['', 'computer dataset', 'computer', 'other', 'm', 'c| |||||||||||'],            # Other digital carrier             ########## COMPUTER FILE ##########
+    'EA':	['', 'computer dataset', 'computer', 'unspecified', 'm', 'c| |||||||||||'],      # Digital (delivered electronically)#
+    'EB':	['', 'computer dataset', 'computer', 'online resource', 'm', 'cr |||||||||||'],  # Digital download and online       #
+    'EC':	['', 'computer dataset', 'computer', 'online resource', 'm', 'cr |||||||||||'],  # Digital online                    #
+    'ED':	['', 'computer dataset', 'computer', 'online resource', 'm', 'cr |||||||||||'],  # Digital download                  ########## COMPUTER FILE ##########
+    'FA':	['t', 'still image', 'projected', 'unspecified', 'g', 'g| ||||||'],              # Film or transparency              ########## VISUAL ##########
+    'FC':	['s', 'still image', 'projected', 'slide', 'g', 'gs ||||||'],                    # Slides                            #
+    'FD':	['t', 'still image', 'projected', 'overhead transparency', 'g', 'gt ||||||'],    # OHP transparencies                #
+    'FE':	['f', 'still image', 'projected', 'filmstrip', 'g', 'gf ||||||'],                # Filmstrip                         #
+    'FF':	['f', 'still image', 'projected', 'unspecified', 'g', 'g| ||||||'],              # Film                              #
+    'FZ':	['t', 'still image', 'projected', 'unspecified', 'g', 'g| ||||||'],              # Other film or transparency format ########## VISUAL ##########
+    'LA':	['', 'computer dataset', 'computer', 'unspecified', 'm', 'c| |||||||||||'],      # Digital product license           ########## COMPUTER FILE ##########
+    'LB':	['', 'computer dataset', 'computer', 'unspecified', 'm', 'c| |||||||||||'],      # Digital product license key       #
+    'LC':	['', 'computer dataset', 'computer', 'unspecified', 'm', 'c| |||||||||||'],      # Digital product license code      ########## COMPUTER FILE ##########
+    'MA':	['a', 'text', 'microform', 'unspecified', 'a', 'h| ||||||||||'],                 # Microform                ########## BOOK ##########
+    'MB':	['b', 'text', 'microform', 'microfiche', 'a', 'he ||||||||||'],                  # Microfiche               #
+    'MC':	['a', 'text', 'microform', 'microfilm reel', 'a', 'h| ||||||||||'],              # Microfilm                #
+    'MZ':	['a', 'text', 'microform', 'unspecified', 'a', 'h| ||||||||||'],                 # Other microform          ########## BOOK ##########
+    'PA':	['r', 'text', 'unmediated', 'unspecified', 'a', 'ta'],                           # Miscellaneous print      ########## BOOK ##########
+    'PB':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                                # Address book             #
+    'PC':	['r', 'text', 'unmediated', 'other', 'a', 'ta'],                                 # Calendar                 #
+    'PD':	['r', 'text', 'unmediated', 'card', 'a', 'ta'],                                  # Cards                    #
+    'PE':	['r', 'text', 'unmediated', 'other', 'a', 'ta'],                                 # Copymasters              #
+    'PF':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                                # Diary                    ########## BOOK ##########
+    'PG':	['i', 'still image', 'unmediated', 'sheet', 'k', 'kk |||'],                      # Frieze                   ########## VISUAL ##########
+    'PH':	['b', 'three-dimensional form', 'unmediated', 'object', 'o', None],              # Kit                      ########## VISUAL ##########
+    'PI':	['', 'notated music', 'unmediated', 'volume', 'c', 'q|'],                        # Sheet music              ########## MUSIC ##########
+    'PJ':	['i', 'still image', 'unmediated', 'card', 'k', 'kp |||'],                       # Postcard book or pack    ########## VISUAL ##########
+    'PK':	['i', 'still image', 'unmediated', 'sheet', 'k', 'kk |||'],                      # Poster                   ########## VISUAL ##########
+    'PL':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                                # Record book              ########## BOOK ##########
+    'PM':	['z', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Wallet or folder         ########## VISUAL ##########
+    'PN':	['i', 'still image', 'unmediated', 'sheet', 'k', 'ku |||'],                      # Pictures or photographs  #
+    'PO':	['i', 'still image', 'unmediated', 'sheet', 'k', 'kk |||'],                      # Wallchart                #
+    'PP':	['z', 'still image', 'unmediated', 'other', 'k', 'ku |||'],                      # Stickers                 #
+    'PQ':	['z', 'still image', 'unmediated', 'other', 'k', 'ku |||'],                      # Plate (lámina)           ########## VISUAL ##########
+    'PR':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                                # Notebook / blank book    ########## BOOK ##########
+    'PS':	['r', 'text', 'unmediated', 'volume', 'a', 'ta'],                                # Organizer                ########## BOOK ##########
+    'PT':	['r', 'text', 'unmediated', 'other', 'a', 'ku |||'],                             # Bookmark                 ########## VISUAL ##########
+    'PU':	['r', 'text', 'unmediated', 'sheet', 'a', 'ta'],                                 # Leaflet                  ########## BOOK ##########
+    'PZ':	['r', 'text', 'unmediated', 'unspecified', 'a', 'ta'],                           # Other printed item       ########## BOOK ##########
+    'SA':	['', 'unspecified', 'unspecified', 'unspecified', None],                         # Multiple-component retail product
+    'SB':	['', 'unspecified', 'unspecified', 'unspecified', None],                         # Multiple-component retail product, boxed
+    'SC':	['', 'unspecified', 'unspecified', 'unspecified', None],                         # Multiple-component retail product, slip-cased
+    'SD':	['', 'unspecified', 'unspecified', 'unspecified', None],                         # Multiple-component retail product, shrink-wrapped
+    'SE':	['', 'unspecified', 'unspecified', 'unspecified', None],                         # Multiple-component retail product, loose
+    'SF':	['', 'unspecified', 'unspecified', 'unspecified', None],                         # Multiple-component retail product, part(s) enclosed
+    'VA':	['v', 'three-dimensional moving image', 'video', 'unspecified', 'v| ||||||'],    # Video                    ########## VISUAL ##########
+    'VF':	['v', 'three-dimensional moving image', 'video', 'videodisc', 'vd ||||||'],      # Videodisc                #
+    'VI':	['v', 'three-dimensional moving image', 'video', 'videodisc', 'vd |v||||'],      # DVD video                #
+    'VJ':	['v', 'three-dimensional moving image', 'video', 'videocassette', 'vf |b||||'],  # VHS video                #
+    'VK':	['v', 'three-dimensional moving image', 'video', 'videocassette', 'vf |a||||'],  # Betamax video            #
+    'VL':	['v', 'three-dimensional moving image', 'video', 'videodisc', 'v| ||||||'],      # VCD                      #
+    'VM':	['v', 'three-dimensional moving image', 'video', 'videodisc', 'v| ||||||'],      # SVCD                     #
+    'VN':	['v', 'three-dimensional moving image', 'video', 'videodisc', 'vd |v||||'],      # HD DVD                   #
+    'VO':	['v', 'three-dimensional moving image', 'video', 'videodisc', 'vd |s||||'],      # Blu-ray                  #
+    'VP':	['v', 'three-dimensional moving image', 'video', 'videodisc', 'v| ||||||'],      # UMD Video                #
+    'VQ':	['v', 'three-dimensional moving image', 'video', 'videodisc', 'v| ||||||'],      # CBHD                     #
+    'VZ':	['v', 'three-dimensional moving image', 'video', 'unspecified', 'v| ||||||'],    # Other video format       ########## VISUAL ##########
+    'XA':	['', 'unspecified', 'unspecified', 'unspecified', None],                         # Trade-only material
+    'XB':	['', 'unspecified', 'unmediated', 'object', 'r', None],                          # Dumpbin – empty
+    'XC':	['', 'unspecified', 'unmediated', 'object', 'r', None],                          # Dumpbin – filled
+    'XD':	['', 'unspecified', 'unmediated', 'object', 'r', None],                          # Counterpack – empty
+    'XE':	['', 'unspecified', 'unmediated', 'object', 'r', None],                          # Counterpack – filled
+    'XF':	['i', 'still image', 'unmediated', 'sheet', 'r', 'kk |||'],                      # Poster, promotional
+    'XG':	['', 'unspecified', 'unmediated', 'unspecified', None],                          # Shelf strip
+    'XH':	['', 'unspecified', 'unmediated', 'unspecified', None],                          # Window piece
+    'XI':	['', 'unspecified', 'unmediated', 'unspecified', None],                          # Streamer
+    'XJ':	['', 'unspecified', 'unmediated', 'unspecified', None],                          # Spinner
+    'XK':	['', 'unspecified', 'unmediated', 'object', None],                               # Large book display
+    'XL':	['', 'unspecified', 'unmediated', 'unspecified', None],                          # Shrink-wrapped pack
+    'XM':	['', 'unspecified', 'unmediated', 'unspecified', None],                          # Boxed pack
+    'XZ':	['', 'unspecified', 'unspecified', 'unspecified', None],                         # Other point of sale
+    'ZA':	['r', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # General merchandise
+    'ZB':	['w', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Doll
+    'ZC':	['w', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Soft toy
+    'ZD':	['w', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Toy
+    'ZE':	['g', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Game
+    'ZF':	['r', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # T-shirt
+    'ZG':	['', 'computer program', 'unmediated', 'object', 'm', None],                     # E-book reader
+    'ZH':	['', 'computer program', 'unmediated', 'object', 'm', None],                     # Tablet computer
+    'ZI':	['', 'computer program', 'unmediated', 'object', 'm', None],                     # Audiobook player
+    'ZJ':	['w', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Jigsaw
+    'ZK':	['r', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Mug
+    'ZL':	['r', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Tote bag
+    'ZM':	['r', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Tableware
+    'ZN':	['r', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Umbrella
+    'ZY':	['r', 'three-dimensional form', 'unmediated', 'object', 'r', None],              # Other apparel
+    'ZZ':	['r', 'three-dimensional form', 'unmediated', 'unspecified', 'r', None],         # Other merchandise
 }
 
 # List 81   Product content type
@@ -287,8 +287,9 @@ class OnixProductContentType:
             self.leader_06 = None
 
 
+ONIX_PRODUCT_CONTENT_TYPE_MAP = {}
 for c in ONIX_PRODUCT_CONTENT_TYPE:
-    ONIX_PRODUCT_CONTENT_TYPE[c] = OnixProductContentType(c, ONIX_PRODUCT_CONTENT_TYPE[c])
+    ONIX_PRODUCT_CONTENT_TYPE_MAP[c] = OnixProductContentType(c, ONIX_PRODUCT_CONTENT_TYPE[c])
 
 
 ONIX_CONTRIBUTOR_ROLES = {

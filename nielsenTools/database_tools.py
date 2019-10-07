@@ -31,27 +31,108 @@ DATABASE_PATH = 'isbns.db'
 
 GRAPH_TABLES = {
     'isbns': ([
-        ('isbn', 'TEXT PRIMARY KEY'),
-        ('format', 'TEXT'),
+        ('isbn', 'NCHAR(13) PRIMARY KEY'),
+        ('format', 'NCHAR(1)'),
         ('checked', 'BOOLEAN'),
     ]),
-    'adjacencies': ([
-        ('isbn', 'TEXT'),
-        ('adjacency', 'TEXT'),
+    'isbn_equivalents': ([
+        ('isbna', 'NCHAR(13)'),
+        ('isbnb', 'NCHAR(13)'),
     ]),
 }
 
+
+# ====================
+#      Functions
+# ====================
+
+
+def dedupe_row(row):
+    row = list(map(str, row))
+    for i in range(len(row)):
+        row[i] = '|'.join(sorted(set(row[i].split('|'))))
+    return row
 
 # ====================
 #       Classes
 # ====================
 
 
+class IsbnGraphTable:
+
+    def __init__(self, table_name, conn, cursor):
+        self.name = table_name
+        self.conn = conn
+        self.cursor = cursor
+        self.columns = GRAPH_TABLES[table_name]
+        self.create()
+
+    def create(self, silent=False):
+        if not silent: print('Creating table {} ...'.format(self.name))
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS {} ({}, UNIQUE({}));'
+                            .format(self.name,
+                                    ', '.join('{} {}'.format(key, value) for (key, value) in self.columns),
+                                    ', '.join(key for (key, value) in self.columns)))
+        self.conn.commit()
+        gc.collect()
+
+    def rebuild(self):
+        print('Rebuilding table {} ...'.format(self.name))
+        self.cursor.execute('DROP TABLE IF EXISTS {} ;'.format(self.name))
+        self.create(silent=True)
+
+    def clean(self):
+        print('Deleting NULL entries from table {} ...'.format(self.name))
+        self.cursor.execute('DELETE FROM {} WHERE {} IS NULL OR {} IS NULL OR {} = "" OR {} = "" ;'
+                            .format(self.name, self.columns[0][0], self.columns[1][0],
+                                    self.columns[0][0], self.columns[1][0]))
+        self.conn.commit()
+        gc.collect()
+
+    def build_index(self):
+        """Function to build indexes in a table"""
+        print('Building indexes in {} table ...'.format(self.name))
+        self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_0 ;""".format(self.name))
+        self.cursor.execute("""CREATE INDEX IDX_{}_0 ON {} ({});""".format(self.name, self.name, self.columns[0][0]))
+        self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_1 ;""".format(self.name))
+        self.cursor.execute("""CREATE INDEX IDX_{}_1 ON {} ({});""".format(self.name, self.name, self.columns[1][0]))
+        self.conn.commit()
+        gc.collect()
+
+    def drop_index(self):
+        """Function to drop indexes in a table"""
+        self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_0 ;""".format(self.name))
+        self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_1 ;""".format(self.name))
+        self.conn.commit()
+        gc.collect()
+
+    def dump_table(self):
+        """Function to dump a database table into a text file"""
+        print('Creating dump of {} table ...'.format(self.name))
+        self.cursor.execute('SELECT * FROM {};'.format(self.name))
+        file = open('{}_DUMP_.txt'.format(self.name), mode='w', encoding='utf-8', errors='replace')
+        record_count = 0
+        try: row = self.cursor.fetchone()
+        except: row = None
+        while row:
+            record_count += 1
+            if record_count % 10000 == 0:
+                print('\r{} records processed'.format(str(record_count)), end='\r')
+            file.write('{}\n'.format(str(row)))
+            row = self.cursor.fetchone()
+        del row
+        print('\r{} records processed'.format(str(record_count)), end='\r')
+        file.close()
+        gc.collect()
+        print('{} records in {} table'.format(str(record_count), self.name))
+        return record_count
+
+
 class IsbnDatabase:
 
     def __init__(self):
-        # Connect to database
-        date_time_message('Connecting to local database')
+        """Open a new database connection, and ensure that the correct tables are present"""
+        date_time('Connecting to local database')
 
         self.conn = sqlite3.connect(DATABASE_PATH)
         self.cursor = self.conn.cursor()
@@ -67,127 +148,117 @@ class IsbnDatabase:
         self.cursor.execute('PRAGMA count_changes = FALSE')
 
         # Create tables
-        for table in GRAPH_TABLES:
-            print('Creating table {} ...'.format(table))
-            self.cursor.execute('CREATE TABLE IF NOT EXISTS {} '
-                                '({}, UNIQUE({}));'
-                                .format(table,
-                                        ', '.join('{} {}'.format(key, value) for (key, value) in GRAPH_TABLES[table]),
-                                        ', '.join(key for (key, value) in GRAPH_TABLES[table])))
-        self.conn.commit()
-        gc.collect()
+        self.tables = {table: IsbnGraphTable(table, self.conn, self.cursor) for table in GRAPH_TABLES}
 
     def close(self):
+        """Close the database connection"""
         self.conn.close()
+        gc.collect()
 
-    def clean(self):
-        date_time_message('Cleaning database...')
+    def clean(self, quick_clean=False):
+        """Clean the database to remove unnecessary values"""
+        date_time('Cleaning')
+
+        self.remove_adjacencies_from_collective()
+
+        if not quick_clean:
+            self.transitive_closure()
 
         # Delete null entries
-        for table in GRAPH_TABLES:
-            print('Deleting NULL entries from table {} ...'.format(table))
-            self.cursor.execute('DELETE FROM {} '
-                                'WHERE {} IS NULL OR {} IS NULL OR {} = "" OR {} = "" ;'
-                                .format(table, GRAPH_TABLES[table][0][0], GRAPH_TABLES[table][1][0],
-                                        GRAPH_TABLES[table][0][0], GRAPH_TABLES[table][1][0]))
-        self.conn.commit()
-        gc.collect()
+        for table in self.tables:
+            self.tables[table].clean()
 
-        # Remove adjacencies for collective ISBNs
-        collective = set(item[0] for item in self.cursor.execute("""SELECT isbn FROM isbns WHERE format='C' ;""").fetchall())
-        query = """
-        DELETE FROM adjacencies
-        WHERE isbn IN ({searchList});"""
-        query = query.format(searchList='\'' + '\', \''.join(collective) + '\'')
-        self.cursor.execute(query)
-        query = """
-        DELETE FROM adjacencies
-        WHERE adjacency IN ({searchList});"""
-        query = query.format(searchList='\'' + '\', \''.join(collective) + '\'')
-        self.cursor.execute(query)
-        self.conn.commit()
-        del query
-        gc.collect()
-
-        date_time_message('Vacuuming')
-        self.conn.execute("VACUUM")
-        self.conn.commit()
-        gc.collect()
-
-    def build_index(self, table):
-        """Function to build indexes in a table"""
-        if table not in GRAPH_TABLES:
-            print('Table name {} not recognised'.format(table))
-            return None
-        print('\nBuilding indexes in {} table ...'.format(table))
-
-        self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_0 ;""".format(table))
-        self.cursor.execute("""CREATE INDEX IDX_{}_0 ON {} ({});""".format(table, table, GRAPH_TABLES[table][0][0]))
-        self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_1 ;""".format(table))
-        self.cursor.execute("""CREATE INDEX IDX_{}_1 ON {} ({});""".format(table, table, GRAPH_TABLES[table][1][0]))
-        self.conn.commit()
-        gc.collect()
-
-    def build_indexes(self):
-        """Function to build indexes in the whole database"""
-        print('\nBuilding indexes ...')
-        print('----------------------------------------')
-        print(str(datetime.datetime.now()))
-
-        for table in GRAPH_TABLES:
-            self.build_index(table)
-
-    def drop_indexes(self):
-        """Function to drop indexes in the whole database"""
-        for table in GRAPH_TABLES:
-            self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_0 ;""".format(table))
-            self.cursor.execute("""DROP INDEX IF EXISTS IDX_{}_1 ;""".format(table))
+        if not quick_clean:
+            date_time('Vacuuming')
+            self.conn.execute("VACUUM")
             self.conn.commit()
         gc.collect()
 
-    def dump_table(self, table):
-        """Function to dump a database table into a text file"""
-        print('Creating dump of {} table ...'.format(table))
-        self.cursor.execute('SELECT * FROM {};'.format(table))
-        file = open('{}_DUMP_.txt'.format(table), mode='w', encoding='utf-8', errors='replace')
-        record_count = 0
-        row = self.cursor.fetchone()
-        while row:
-            record_count += 1
-            if record_count % 100 == 0:
-                print('\r{} records processed'.format(str(record_count)), end='\r')
-            file.write('{}\n'.format(str(row)))
-            row = self.cursor.fetchone()
-        del row
-        print('\r{} records processed'.format(str(record_count)), end='\r')
-        file.close()
+    def remove_adjacencies_from_collective(self):
+        # Remove adjacencies for collective ISBNs
+        collective = set(item[0] for item in self.cursor.execute("""SELECT isbn FROM isbns WHERE format='C' ;""").fetchall())
+        searchList = '\'' + '\', \''.join(collective) + '\''
+        for c in GRAPH_TABLES['isbn_equivalents']:
+            self.cursor.execute('DELETE FROM isbn_equivalents WHERE {} IN ({});'.format(c[0], searchList))
+            self.conn.commit()
+        del collective
+        del searchList
         gc.collect()
-        print('{} records in {} table'.format(str(record_count), table))
-        return record_count
+
+    def transitive_closure(self):
+        """Ensure that the ISBN table is complete by computing the transitive closure
+        (i.e. all subgraphs are complete)"""
+        date_time('Computing transitive closure of isbn_equivalents')
+        depth = 1
+        while depth > 0:
+            date_time('Query depth: {}'.format(str(depth)))
+            self.cursor.execute('SELECT DISTINCT t1.isbna, t2.isbnb '
+                                'FROM isbn_equivalents AS t1 INNER JOIN isbn_equivalents AS t2 '
+                                'ON t1.isbnb = t2.isbna WHERE t1.isbna <> t2.isbnb '
+                                'AND NOT EXISTS '
+                                '( SELECT * FROM isbn_equivalents AS t3 WHERE t3.isbna = t1.isbna and t3.isbnb = t2.isbnb ) ;')
+            results = self.cursor.fetchall()
+            sql_query = 'INSERT OR IGNORE INTO isbn_equivalents (isbna, isbnb) VALUES (?, ?) ;'
+            values = []
+            record_count = 0
+            for (isbna, isbnb) in results:
+                record_count += 1
+                values.append((isbna, isbnb))
+                if record_count % 10000 == 0:
+                    print('\r{} records processed'.format(str(record_count)), end='\r')
+                    self.execute_all(sql_query, values)
+                    values = []
+            print('\r{} records processed\n'.format(str(record_count)), end='\r')
+            self.execute_all(sql_query, values)
+            if record_count > 0:
+                depth += 1
+            else:
+                self.remove_adjacencies_from_collective()
+                gc.collect()
+                return depth
+
+    def execute_all(self, query, values):
+        if values:
+            self.cursor.executemany(query, values)
+            self.conn.commit()
+            gc.collect()
+        return []
+
+    def execute_all_many(self, queries, values):
+        for v in queries:
+            values[v] = self.execute_all(queries[v], values[v])
+        return values
+
+    def build_indexes(self):
+        """Function to build indexes in the whole database"""
+        date_time('Building indexes ...')
+        for table in self.tables:
+            self.tables[table].build_index()
+
+    def drop_indexes(self):
+        """Function to drop indexes in the whole database"""
+        date_time('Dropping indexes ...')
+        for table in self.tables:
+            self.tables[table].drop_index()
 
     def dump_database(self):
         """Function to create dumps of all tables within the database"""
-        print('\nCreating dump of database ...')
-        print('----------------------------------------')
-        print(str(datetime.datetime.now()))
-
-        self.count_nodes()
-        self.count_adjacencies()
-
-        for table in GRAPH_TABLES:
-            self.dump_table('{}'.format(table))
+        date_time('Creating dump of database ...')
+        for table in self.tables:
+            self.tables[table].dump_table()
 
     def add_nielsen(self, input_path, skip_check=True):
+        """Function to add ISBN equivalences from Nielsen cluster files"""
         for root, subdirs, files in os.walk(input_path):
             for file in files:
                 if file.endswith(('.add', '.upd', '.del')):
-                    date_time_message('Searching file {}'.format(str(file)))
+                    date_time('Parsing ISBN equivalences from Nielsen cluster file {} ...'.format(str(file)))
 
                     G = Graph(skip_check=skip_check)
 
                     ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace', newline='')
                     i = 0
-                    c = csv.DictReader(ifile, delimiter=',')
+                    c = csv.DictReader(ifile, delimiter='\t')
                     for row in c:
                         i += 1
                         if i % 100 == 0:
@@ -200,6 +271,7 @@ class IsbnDatabase:
                             G.add_nodes(data)
                             data = [(i.isbn, j.isbn) for i in isbns for j in isbns if
                                     i.isbn and j.isbn and i.isbn != j.isbn and i.format != 'C' and j.format != 'C']
+
                             G.add_edges(data)
                     print('{} records processed'.format(str(i)), end='\r')
 
@@ -207,19 +279,77 @@ class IsbnDatabase:
                     G.check_graph()
                     self.add_graph_to_database(G, skip_check)
 
+    '''
     def add_marc(self, input_path, skip_check=True):
         for root, subdirs, files in os.walk(input_path):
             for file in files:
                 if file.endswith('.lex'):
-                    date_time_message('Searching file {}'.format(str(file)))
+                    date_time('Searching file {}'.format(str(file)))
             return
+    '''
 
     def search_for_isbns(self, input_path):
         for root, subdirs, files in os.walk(input_path):
             for file in files:
                 if file.endswith('.txt'):
-                    date_time_message('Searching file {}'.format(file))
+                    date_time('Reading file {}'.format(file))
 
+                    isbn_list = {}
+                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace')
+                    for filelineno, line in enumerate(ifile):
+                        if filelineno % 10000 == 0:
+                            print('\r{} records processed'.format(str(filelineno)), end='\r')
+                        line = line.strip()
+                        isbn = Isbn(line)
+                        if isbn.isbn:
+                            isbn_list[isbn.isbn] = [line, isbn.isbn, isbn.prefix, 'U', isbn.valid, '']
+                            # Input ISBN, 13-digit ISBN, Prefix, Format, Valid?, Related Identifiers
+                    ifile.close()
+                    print('\r{} records processed'.format(str(filelineno)), end='\r')
+
+                    date_time('Searching for matches from file {}'.format(file))
+                    searchList = '\'' + '\', \''.join(i for i in isbn_list) + '\''
+                    self.cursor.execute("SELECT isbns.isbn, isbns.format, GROUP_CONCAT(isbn_equivalents.isbnb, ';') "
+                                        "FROM isbns INNER JOIN isbn_equivalents on isbns.isbn = isbn_equivalents.isbna "
+                                        "WHERE isbns.isbn IN ({}) "
+                                        "GROUP BY isbns.isbn "
+                                        "ORDER BY isbns.isbn ASC ;".format(searchList))
+                    record_count = 0
+                    try: row = list(self.cursor.fetchone())
+                    except: row = None
+                    while row:
+                        record_count += 1
+                        if record_count % 10000 == 0:
+                            print('\r{} records processed'.format(str(record_count)), end='\r')
+                        isbn, format, related = dedupe_row(row)
+                        if isbn in isbn_list:
+                            isbn_list[isbn][3] = format
+                            isbn_list[isbn][5] = related
+                        try: row = list(self.cursor.fetchone())
+                        except: row = None
+                    del row
+                    print('\r{} records processed'.format(str(record_count)), end='\r')
+                    gc.collect()
+
+                    ofile = open(os.path.join(root, file.replace('.txt', '_out.txt')), mode='w',
+                                 encoding='utf-8', errors='replace')
+                    ofile.write('Input ISBN\t13-digit ISBN\tPrefix\tFormat\tValid?\tRelated Identifiers\n')
+                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace')
+                    for filelineno, line in enumerate(ifile):
+                        line = line.strip()
+                        isbn = Isbn(line)
+                        if isbn.isbn in isbn_list:
+                            ofile.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(*isbn_list[isbn.isbn]))
+                        else: ofile.write('{}\t\t\t\tFalse\t\n'.format(line))
+                    ifile.close()
+                    ofile.close()
+                    gc.collect()
+                    return record_count
+
+
+
+
+                    '''
                     connected_components = {}
                     isbn_list = set()
                     ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace')
@@ -256,6 +386,7 @@ class IsbnDatabase:
                                                               connected_components[isbn.isbn])) if isbn.isbn else ''))
                     ifile.close()
                     ofile.close()
+                    '''
 
     def fetch_all(self, query):
         self.cursor.execute(query)
@@ -271,7 +402,7 @@ class IsbnDatabase:
         return self.fetch_all("""SELECT isbn FROM isbns;""")
 
     def list_adjacencies(self):
-        return self.fetch_all("""SELECT isbn FROM adjacencies;""")
+        return self.fetch_all("""SELECT * FROM isbn_equivalents;""")
 
     def count_nodes(self):
         print('{} nodes in graph'.format(str(len(self.list_nodes()))))
@@ -280,19 +411,19 @@ class IsbnDatabase:
         print('{} edges in graph'.format(str(len(self.list_adjacencies()))))
 
     def write_adjacencies(self):
-        print('Writing list adjacencies ...')
+        print('Writing list of adjacencies ...')
         file = open(os.path.join(self.output_path, 'ISBNs_list.txt'), 'w', encoding='utf-8', errors='replace')
         file.write('Identifier\tPrefix\tFormat\tFormat checked?\tValid?\tRelated Identifiers\n')
         query = """
-        SELECT isbns.*, GROUP_CONCAT(adjacencies.adjacency, ';')
-        FROM isbns LEFT JOIN adjacencies ON isbns.isbn = adjacencies.isbn
+        SELECT isbns.*, GROUP_CONCAT(isbn_equivalents.isbnb, ';')
+        FROM isbns LEFT JOIN isbn_equivalents ON isbns.isbn = isbn_equivalents.isbna
         GROUP BY isbns.isbn
         ORDER BY isbns.isbn ASC;"""
         self.cursor.execute(query)
         try: row = list(self.cursor.fetchone())
         except: row = None
         while row:
-            isbn, format, checked, adjacencies = row[0], row[1], row[2], row[3]
+            isbn, format, checked, adjacencies = dedupe_row(row)
             isbn = Isbn(content=isbn, format=format)
             file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(isbn.isbn, isbn.prefix, format,
                                                          'True' if checked == 1 else 'False', str(isbn.valid),
@@ -317,7 +448,7 @@ class IsbnDatabase:
     def get_formats(self, nodes):
         if not nodes: return None
         formats = {}
-        query = """SELECT isbn, format FROM isbns WHERE isbn IN ({searchList}) ORDER BY isbn ASC; """
+        query = """SELECT isbn, format FROM isbns WHERE isbn IN ({searchList}) ORDER BY isbn ASC;"""
         self.cursor.execute(query.format(searchList='\'' + '\', \''.join(nodes) + '\''))
         try: row = self.cursor.fetchone()
         except: row = list(self.cursor.fetchone())
@@ -334,7 +465,7 @@ class IsbnDatabase:
         while nextlevel:
             thislevel = nextlevel
             nextlevel = set()
-            query = """SELECT adjacency FROM adjacencies WHERE isbn IN ({searchList}) ORDER BY isbn ASC; """
+            query = """SELECT isbnb FROM isbn_equivalents WHERE isbna IN ({searchList}) ORDER BY isbna ASC; """
             self.cursor.execute(query.format(searchList='\'' + '\', \''.join(thislevel) + '\''))
             row = self.cursor.fetchone()
             while row:
@@ -369,10 +500,8 @@ class IsbnDatabase:
             i += 1
             values.append((node, graph.formats[node], graph.checked[node]))
             if i % 1000 == 0:
-                self.cursor.executemany(query, values)
-                values = []
-        if values: self.cursor.executemany(query, values)
-        self.conn.commit()
+                values = self.execute_all(query, values)
+        self.execute_all(query, values)
         print('{} new nodes added to graph'.format(str(i)))
 
         # Update existing nodes
@@ -399,41 +528,29 @@ class IsbnDatabase:
                     if c != checked:
                         update_checked.append([c, isbn])
                 if i % 1000 == 0:
-                    if update_formats:
-                        self.cursor.executemany("""UPDATE OR REPLACE isbns SET format = ? WHERE isbn = ?;""", update_formats)
-                    if update_checked:
-                        self.cursor.executemany("""UPDATE OR REPLACE isbns SET checked = ? WHERE isbn = ?;""", update_checked)
-                    update_formats, update_checked = [], []
-                try:
-                    row = list(self.cursor.fetchone())
-                except:
-                    break
-            if update_formats:
-                self.cursor.executemany("""UPDATE OR REPLACE isbns SET format = ? WHERE isbn = ?;""", update_formats)
-            if update_checked:
-                self.cursor.executemany("""UPDATE OR REPLACE isbns SET checked = ? WHERE isbn = ?;""", update_checked)
-                self.conn.commit()
+                    update_formats = self.execute_all("""UPDATE OR REPLACE isbns SET format = ? WHERE isbn = ?;""", update_formats)
+                    update_checked = self.execute_all("""UPDATE OR REPLACE isbns SET checked = ? WHERE isbn = ?;""", update_checked)
+                try: row = list(self.cursor.fetchone())
+                except: break
+            self.execute_all("""UPDATE OR REPLACE isbns SET format = ? WHERE isbn = ?;""", update_formats)
+            self.execute_all("""UPDATE OR REPLACE isbns SET checked = ? WHERE isbn = ?;""", update_checked)
             print('{} existing nodes updated'.format(str(i)))
 
         # Add new adjacencies
         i = 0
-        query = """
-        INSERT OR IGNORE INTO adjacencies (isbn, adjacency)
-        VALUES (?, ?); """
+        query = """INSERT OR IGNORE INTO isbn_equivalents (isbna, isbnb) VALUES (?, ?); """
         values = []
         for node in graph.nodes:
             for adj in graph.adjacencies[node]:
                 i += 1
                 values.append((node, adj))
                 if i % 1000 == 0:
-                    self.cursor.executemany(query, values)
-                    values = []
-        if values: self.cursor.executemany(query, values)
-        self.conn.commit()
+                    values = self.execute_all(query, values)
+        self.execute_all(query, values)
         print('{} new adjacencies added to graph'.format(str(i)))
 
-        self.clean()
-        self.dump_database()
+        #self.clean()
+        #self.dump_database()
 
 
 # ====================
@@ -444,12 +561,21 @@ class IsbnDatabase:
 def parse_marc(input_path, skip_check=True) -> None:
     db = IsbnDatabase()
     db.add_marc(input_path, skip_check)
+    db.dump_database()
     db.close()
 
 
 def parse_nielsen(input_path, skip_check=True) -> None:
     db = IsbnDatabase()
     db.add_nielsen(input_path, skip_check)
+    db.dump_database()
+    db.close()
+
+
+def parse_tsv(input_path, skip_check=True) -> None:
+    db = IsbnDatabase()
+    db.add_tsv(input_path, skip_check)
+    db.dump_database()
     db.close()
 
 
