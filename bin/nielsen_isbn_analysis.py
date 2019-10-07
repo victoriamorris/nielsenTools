@@ -27,10 +27,10 @@ __status__ = '4 - Beta Development'
 
 
 OPTIONS = OrderedDict([
-    ('M', 'Parse ISBNs from MARC field'),
-    ('N', 'Parse ISBNs from Nielsen CSV file'),
+    ('M', 'Parse ISBNs from MARC file'),
+    ('N', 'Parse ISBNs from Nielsen cluster file'),
+    ('T', 'Parse ISBNs from TSV file'),
     ('S', 'Search for ISBNs'),
-    ('I', 'build Indexes'),
     ('X', 'eXport graph'),
     ('E', 'Exit program'),
 ])
@@ -39,11 +39,20 @@ OPTIONS = OrderedDict([
 ACTIONS = {
     'M': parse_marc,
     'N': parse_nielsen,
+    'T': parse_tsv,
     'S': search_isbns,
-    'I': index,
     'X': export_graph,
     'E': sys.exit,
 }
+
+EXTENSIONS = {
+    'M': ('.lex'),
+    'N': ('.add', '.del', '.upd'),
+    'T': ('.tsv'),
+    'S': ('.txt'),
+}
+
+NO_INPUT = ['I', 'X', 'E']
 
 
 # ====================
@@ -58,10 +67,8 @@ class OptionHandler:
         self.selection = None
         self.skip_check = skip_check
         if selected_option in OPTIONS:
-            print('Option A')
             self.selection = selected_option
         else:
-            print('Option B')
             self.get_selection()
 
     def get_selection(self):
@@ -72,18 +79,22 @@ class OptionHandler:
             self.selection = input('Sorry, your choice was not recognised. '
                                    'Please enter one of {}:'.format(', '.join(opt for opt in OPTIONS))).upper()
 
+    def set_selection(self, selected_option):
+        if selected_option in OPTIONS:
+            self.selection = selected_option
+
     def execute(self):
 
         if self.selection not in OPTIONS:
-            print('Option C')
             self.get_selection()
 
-        date_time_message(message(OPTIONS[self.selection]))
+        date_time(message(OPTIONS[self.selection]))
 
         if self.selection == 'E':
             sys.exit()
 
         ACTIONS[self.selection](self.input_path, self.skip_check)
+        self.selection = None
         return
 
 
@@ -97,9 +108,8 @@ def usage():
     print('Correct syntax is:')
     print('nielsen_isbn_analysis -i <input_path> [options]')
     print('    -i    path to FOLDER containing Input files')
-    print('If not specified, input path will be /Input/Clusters')
+    print('If not specified, input path will be /Input')
     print('\nUse quotation marks (") around arguments which contain spaces')
-    print('\nInput file names should end .add, .upd or .del')
     print('\nOptions')
     print('EXACTLY ONE of the following:')
     for o in OPTIONS:
@@ -107,6 +117,9 @@ def usage():
     print('ANY of the following:')
     print('    -c        Check ISBN format conflicts using Google Books API')
     print('    --help    Display this message and exit')
+    print('Option -i is not required with options {}'.format(', '.join(o.lower() for o in NO_INPUT)))
+    for o in EXTENSIONS:
+        print('If option -{} is selected, input files should end {}'.format(o.lower(), ', '.join(EXTENSIONS[o])))
     exit_prompt()
 
 
@@ -128,8 +141,8 @@ def main(argv=None):
     print('========================================')
     print('nielsen_isbn_analysis')
     print('========================================')
-    print('\nThis program collects ISBN cluster information\n'
-          'from Nielsen CSV files\n')
+    print('\nThis program analyses data relating to ISBN relationships\n')
+    magician()
 
     try: opts, args = getopt.getopt(argv, 'i:c' + ''.join(o.lower() for o in OPTIONS),
                                     ['input_path=', 'help'])
@@ -143,6 +156,8 @@ def main(argv=None):
             selected_option = opt.upper().strip('-')
         else: exit_prompt('Error: Option {} not recognised'.format(opt))
 
+    if selected_option == 's' and 'i' not in set(opt for opt, arg in opts):
+        input_path = os.path.join(dir, 'Input', 'Search_lists')
     # Check that files exist
     if not input_path:
         exit_prompt('Error: No path to input files has been specified')

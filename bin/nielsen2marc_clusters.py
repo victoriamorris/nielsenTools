@@ -13,13 +13,14 @@ from nielsenTools.nielsen_tools import *
 gc.set_threshold(400, 5, 5)
 
 # Increase CSV field size limit because some fields are ENORMOUS
-csv.field_size_limit(sys.maxsize)
+csv.field_size_limit(2147483647)
 
 __author__ = 'Victoria Morris'
 __license__ = 'MIT License'
 __version__ = '1.0.0'
 __status__ = '4 - Beta Development'
 
+MAX_RECORDS_PER_FILE = 2000000
 
 # ====================
 #      Classes
@@ -175,6 +176,7 @@ def main(argv=None):
     print('========================================')
     print('\nThis program converts Nielsen CSV files\n'
           'for CLUSTERS to MARC 21 (Bibliographic)\n')
+    magician()
 
     try: opts, args = getopt.getopt(argv, 'i:o:', ['input_path=', 'output_path=', 'help'])
     except getopt.GetoptError as err:
@@ -207,26 +209,44 @@ def main(argv=None):
     # Iterate through input files
     # --------------------
 
+    file_count, record_count = 0, 0
+    ids = set()
+    today = datetime.date.today().strftime("%Y-%m-%d")
+
+    # Open input and output files
+    ofile = open(os.path.join(output_path, '{n:03d}_cluster_{t}.lex'.format(n=file_count, t=today)), mode='wb')
+    tfile = open(os.path.join(output_path, '{n:03d}_cluster_{t}.txt'.format(n=file_count, t=today)), mode='w', encoding='utf-8', errors='replace')
+    dfile = open(os.path.join(output_path, '_duplicates_{}.txt'.format(today)), mode='w', encoding='utf-8', errors='replace')
+    writer = MARCWriter(ofile)
+
     for root, subdirs, files in os.walk(input_path):
         for file in files:
             if file.endswith(('.add', '.upd', '.del')):
-                status = {'add': 'n', 'upd': 'c', 'del': 'd'}[file[-3:]]
-                ids = set()
-                print('\n\nProcessing file {} ...'.format(str(file)))
-                print('----------------------------------------')
-                print(str(datetime.datetime.now()))
 
-                # Open input and output files
+                status = {'add': 'n', 'upd': 'c', 'del': 'd'}[file[-3:]]
+                date_time('Processing file {} ...'.format(str(file)))
+
                 ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace', newline='')
-                ofile = open(os.path.join(output_path, file + '.lex'), 'wb')
-                tfile = open(os.path.join(output_path, file + '.txt'), mode='w', encoding='utf-8', errors='replace')
-                dfile = open(os.path.join(output_path, file + '_duplicates.txt'), mode='w', encoding='utf-8', errors='replace')
-                writer = MARCWriter(ofile)
                 i = 0
-                c = csv.DictReader(ifile, delimiter=',')
+
+                c = csv.DictReader(ifile, delimiter='\t')
                 for row in c:
                     i += 1
-                    print('{} records processed'.format(str(i)), end='\r')
+                    record_count += 1
+
+                    if record_count % MAX_RECORDS_PER_FILE == 0:
+                        date_time('Starting new output file')
+                        # Start a new file
+                        for f in (ofile, tfile):
+                            f.close()
+                        file_count += 1
+                        ofile = open(os.path.join(output_path, '{n:03d}_cluster_{t}.lex'.format(n=file_count, t=today)), mode='wb')
+                        tfile = open(os.path.join(output_path, '{n:03d}_cluster_{t}.txt'.format(n=file_count, t=today)), mode='w', encoding='utf-8', errors='replace')
+                        writer = MARCWriter(ofile)
+
+                    if i % 1000 == 0:
+                        print('{} records processed'.format(str(i)), end='\r')
+
                     nielsen = NielsenCSVProducts(row, status)
                     marc = nielsen.marc()
                     record_id = nielsen.record_id()
@@ -235,13 +255,19 @@ def main(argv=None):
                     if record_id:
                         if record_id in ids:
                             dfile.write(record_id + '\n')
-                        else: ids.add(record_id)
+                        ids.add(record_id)
 
-                # Close files
-                for f in (ifile, ofile, tfile, dfile):
-                    f.close()
+                print('{} records processed'.format(str(i)), end='\r')
+                ifile.close()
+
+    # Close files
+    for f in (ofile, tfile, dfile):
+        f.close()
+
+    print('\n{} duplicates found'.format(str(len(ids))))
 
     date_time_exit()
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])

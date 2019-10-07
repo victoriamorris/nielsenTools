@@ -7,19 +7,24 @@
 
 # Import required modules
 import getopt
+import math
+from nielsenTools.isbn_tools import *
 from nielsenTools.nielsen_tools import *
+from nielsenTools.database_tools import *
+from nielsenTools.functions import *
 
 # Set threshold for garbage collection (helps prevent the program run out of memory)
 gc.set_threshold(400, 5, 5)
 
 # Increase CSV field size limit because some fields are ENORMOUS
-csv.field_size_limit(sys.maxsize)
+csv.field_size_limit(2147483647)
 
 __author__ = 'Victoria Morris'
 __license__ = 'MIT License'
 __version__ = '1.0.0'
 __status__ = '4 - Beta Development'
 
+MAX_RECORDS_PER_FILE = 1000000
 
 # ====================
 #      Classes
@@ -32,10 +37,11 @@ class NielsenTSVProducts:
         self.row = csv_row
         self.status = status
         self.UK = False
+        self.multimedia, self.ebook, self.audio = False, False, False
 
         self.values = {}
         for v in ['CBMCCODE', 'CIS', 'COP', 'CY', 'FICGH', 'IA', 'ILL', 'IMPID', 'ISBN13', 'KEYWORDS', 'PFC', 'PFCT',
-                  'PPTCT', 'PRODCT', 'PSF', 'PUBID', 'PUBPD', 'RA', 'REISD', 'RSS', 'USGCT']:
+                  'PPTCT', 'PRODCT', 'PSF', 'PUBID', 'PUBPD', 'RA', 'REISD', 'RSS', 'USGCT', 'GBPCCPRC', 'GBPCCPRRRP']:
             try: self.values[v] = clean(self.row[v])
             except: self.values[v] = None
         if not self.values['ISBN13']: self.values['ISBN13'] = '[NO RECORD IDENTIFIER]'
@@ -83,7 +89,7 @@ class NielsenTSVProducts:
     def marc(self):
 
         # Leader (NR)
-        try: p6 = ONIX_PRODUCT_CONTENT_TYPE[clean(self.row['PCTC1'])].leader_06
+        try: p6 = ONIX_PRODUCT_CONTENT_TYPE_MAP[clean(self.row['PCTC1'])].leader_06
         except:
             try: p6 = ONIX_PRODUCT_FORM[self.values['PFC']][4]
             except: p6 = 'a'
@@ -98,12 +104,16 @@ class NielsenTSVProducts:
         record.add_field(Field(tag='001', data=self.values['ISBN13']))
 
         # 003 - Control Number Identifier (NR)
-        record.add_field(Field(tag='003', data='UK-WkNB'))
+        record.add_field(Field(tag='003', data='Uk'))
 
         # 005 - Date and Time of Latest Transaction (NR)
         record.add_field(Field(tag='005', data='{}.0'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S'))))
 
         # 007 - Physical Description Fixed Field-General Information (R)
+        # Field 007 depends on the material type
+        try: data = ONIX_PRODUCT_FORM[self.values['PFC']][5]
+        except: data = None
+        if data: record.add_field(Field(tag='007', data=data))
 
         # 008 - Fixed-Length Data Elements-General Information (NR)
         # 00-05 - Date entered on file
@@ -180,16 +190,18 @@ class NielsenTSVProducts:
             test_string = '|' + '|'.join(self.row['{}{}'.format(subject_type, str(i))]
                                          for subject_type in [s for s in ['BIC2ST', 'BISACT', 'THEMAST', 'UKSLCAFT', 'UKSLCANFT', 'UKSLCCT'] if '{}1'.format(s) in self.row]
                                          for i in range(1, 6 if subject_type.startswith('UKSLC') else 10)).lower()
-            data += 'a' if 'autobiography' in test_string \
-                else 'b' if 'biography' in test_string \
-                else 'd' if '|drama' in test_string \
-                else 'e' if ('|essays' in test_string or '/ essays' in test_string) \
-                else 'k' if 'comedy' in test_string \
-                else 'm' if ('|memoir' in test_string or '/ memoir' in test_string) \
-                else 'o' if ('folk tale' in test_string or 'folklore' in test_string or 'fairy tale' in test_string) \
-                else 'p' if '|poetry' in test_string \
-                else 'f' if ('|fiction' in test_string or ' fiction' in test_string) \
-                else '|'
+            test_string_2 = ''
+            test_string_2 += 'a' if 'autobiography' in test_string else ''
+            test_string_2 += 'b' if 'biography' in test_string else ''
+            test_string_2 += 'd' if '|drama' in test_string else ''
+            test_string_2 += 'e' if ('|essays' in test_string or '/ essays' in test_string) else ''
+            test_string_2 += 'k' if 'comedy' in test_string else ''
+            test_string_2 += 'm' if ('|memoir' in test_string or '/ memoir' in test_string) else ''
+            test_string_2 += 'o' if ('folk tale' in test_string or 'folklore' in test_string or 'fairy tale' in test_string) else ''
+            test_string_2 += 'p' if '|poetry' in test_string else ''
+            test_string_2 += 'f' if ('|fiction' in test_string or ' fiction' in test_string) else ''
+            test_string_2 += '||'
+            data += test_string_2[:2]
             # 32 - Undefined
             data += ' '
             # 33 - Transposition and arrangement
@@ -249,7 +261,7 @@ class NielsenTSVProducts:
         elif self.material_type == 'BK':
             # 18-21 - Illustrations
             # ILL   Illustrations and other contents note.
-            if self.values['ILL']: data += (''.join(ILLUSTRATIONS[x] for x in ILLUSTRATIONS if x in self.values['ILL']) + '    ')[:4]
+            if self.values['ILL']: data += (''.join(ILLUSTRATIONS[x] for x in ILLUSTRATIONS if x in self.values['ILL']).strip() + '    ')[:4]
             else: data += '    '
             # 22 - Target audience
             # NAC*  Nielsen BookData Audience level: Code
@@ -257,7 +269,7 @@ class NielsenTSVProducts:
             data += self.values['NAC']
             # 23 - Form of item
             # PFC   Product Form: Code
-            try: data += ONIX_PRODUCT_FORM[self.values['PFC']][0]
+            try: data += (ONIX_PRODUCT_FORM[self.values['PFC']][0] + '|')[:1]
             except: data += '|'
             # 24-27 - Nature of contents
             # PFCT      Product Form :Text Description
@@ -266,7 +278,7 @@ class NielsenTSVProducts:
             test_string += '|' + (self.values['ILL'] or '')
             try: test_string += '|' + '|'.join(self.row['PCTCT{}'.format(i)] for i in range(1, 10))
             except: pass
-            data += (''.join(RE_NATURE_OF_CONTENTS[x] for x in RE_NATURE_OF_CONTENTS if re.search(x, test_string)) + '||||')[:4]
+            data += (''.join(RE_NATURE_OF_CONTENTS[x] for x in RE_NATURE_OF_CONTENTS if re.search(x, test_string)).strip() + '||||')[:4]
             # 28 - Government publication
             data += '|'
             # 29 - Conference publication
@@ -332,18 +344,27 @@ class NielsenTSVProducts:
                     if qualifier:
                         if fmts: qualifier += ' ({} format)'.format(list(fmts)[0])
                         subfields.extend(['q', qualifier])
+                    if self.values['GBPCCPRC'] == 'GBP' and self.values['GBPCCPRRRP'] \
+                            and re.match(r'[0-9]+\.[0-9][0-9]', self.values['GBPCCPRRRP']):
+                        subfields.extend(['c', '£{}'.format(self.values['GBPCCPRRRP'].lstrip('0'))])
                 record.add_field(Field('020', [' ', ' '], subfields))
+                w = isbn13_convert(v)
+                if w:
+                    subfields_2 = ['a' if c == 'ISBN13' else 'z', w]
+                    subfields_2.extend(subfields[2:])
+                    record.add_field(Field('020', [' ', ' '], subfields_2))
 
         # 024 - Other Standard Identifier (R)
         for c in ['EAN', 'ISMN', 'DOI']:
             try: v = self.row[c].strip()
-            except: v = None
-            if v == '': v = None
-            if v:
-                subfields = ['a', v]
-                if c == 'DOI': subfields.extend(['2', 'doi'])
-                indicators = ['3' if c == 'EAN' else '2' if c == 'ISMN' else '7', ' ']
-                record.add_field(Field('024', indicators, subfields))
+            except: continue
+            if v == '' or not v: continue
+            test = set([s for f in record.get_fields('020') for s in f.get_subfields('a')])
+            if v in test: continue
+            subfields = ['a', v]
+            if c == 'DOI': subfields.extend(['2', 'doi'])
+            indicators = ['3' if c == 'EAN' else '2' if c == 'ISMN' else '7', ' ']
+            record.add_field(Field('024', indicators, subfields))
 
         # 034 - Coded Cartographic Mathematical Data (R)
         # MS*   Map scale as stored
@@ -355,7 +376,7 @@ class NielsenTSVProducts:
                 record.add_field(Field('034', ['1', ' '], ['a', 'a', 'b', MS]))
 
         # 040 - Cataloging Source (NR)
-        record.add_field(Field('040', [' ', ' '], ['a', 'UK-WkNB', 'b', 'eng', 'c', 'Uk', 'd', 'Uk']))
+        record.add_field(Field('040', [' ', ' '], ['a', 'UK-WkNB', 'b', 'eng', 'c', 'UK-WkNB', 'd', 'Uk']))
 
         # 041 - Language Code (R)
         # LC*   Language of Text: Code
@@ -388,7 +409,8 @@ class NielsenTSVProducts:
                 for l in TFT.split(','):
                     try: translations.add(LANGUAGES_CODES[l.strip()])
                     except: pass
-        if len(languages) > 0 or len(translations) > 0:
+        if len(languages) + len(translations) > 1 or len(translations) > 0 \
+                or (len(languages) == 1 and 'eng' not in languages):
             subfields = []
             for l in languages:
                 subfields.extend(['a', l])
@@ -567,7 +589,6 @@ class NielsenTSVProducts:
             if PUBPD and len(PUBPD) >= 4:
                 record.add_field(Field('263', [' ', ' '], ['a', (PUBPD + '------')[:6]]))
 
-
         # 264 - Production, Publication, Distribution, Manufacture, and Copyright Notice (R)
         # POP       Place of publication
         # COP       Country of publication
@@ -615,7 +636,7 @@ class NielsenTSVProducts:
                     except: DN = None
                     if DN: d.add(DN)
             if d:
-                d = '[distributor] ' + ' :|[distributor] '.join(d) + '.'
+                d = '[distributor] ' + ' :|[distributor] '.join(d)
                 for DN in d.split('|'):
                     subfields.extend(['b', DN])
                 record.add_field(Field('264', ['3', '2'], subfields))
@@ -664,7 +685,9 @@ class NielsenTSVProducts:
             elif clean(self.row['SN']): ILL += '.'
             subfields.extend(['b', ILL])
         if HMM:
-            HMM += ' mm'
+            # Try to round up and convert to cm
+            try: HMM = str(math.ceil(int(HMM) / 10)) + ' cm'
+            except: HMM += ' mm'
             if clean(self.row['SN']): HMM += '.'
             subfields.extend(['c', HMM])
         if subfields: record.add_field(Field('300', [' ', ' '], subfields))
@@ -741,27 +764,12 @@ class NielsenTSVProducts:
                     record.add_field(Field('365', [' ', ' '], subfields))
 
         # 366 - Trade Availability Information (R)
-        for c in DISTRIBUTION_AREAS:
-            if c != 'IRL':
-                # xxxNBDEAD     Availability Date
-                # xxxNBDPAC     ONIX Product Availability – Code
-                try: NBDEAD = clean(re.sub(r'[^0-9]', '', self.row['{}NBDEAD'.format(c)]))
-                except: NBDEAD = None
-                try: NBDPAC = clean(self.row['{}NBDPAC'.format(c)])
-                except: NBDPAC = None
-                if NBDEAD:
-                    self.UK = True
-                    subfields = ['b', NBDEAD]
-                    if NBDPAC: subfields.extend(['c', NBDPAC])
-                    subfields.extend(['j', c])
-                    if c != 'EUR': subfields.extend(['k', DISTRIBUTION_AREAS[c][2]])
-                    if NBDPAC: subfields.extend(['2', 'onixas'])
-                    record.add_field(Field('366', [' ', ' '], subfields))
-
         # EMBD      Embargo Date
         # PUBSC     ONIX Publishing Status - Code
         # PUBST     ONIX Publishing Status – Text Description
         # MOPD      Date the system was informed that the record is no longer available
+        # PUBPD     Date of Publication: as supplied by Publisher or approved source
+        # UKNBDLPD  Date of Publication: as supplied by Publisher or approved source
         try: EMBD = clean(re.sub(r'[^0-9]', '', self.row['EMBD']))
         except: EMBD = None
         try: PUBSC = clean(self.row['PUBSC'])
@@ -771,13 +779,57 @@ class NielsenTSVProducts:
         try: MOPD = clean(self.row['MOPD'])
         except: MOPD = None
         subfields = []
+        try: PUBPD = re.sub(r'[^0-9]', '', clean(self.row['PUBPD']))
+        except:
+            try: PUBPD = re.sub(r'[^0-9]', '', clean(self.row['UKLPUBD']))
+            except:
+                try: PUBPD = re.sub(r'[^0-9]', '', clean(self.row['UKNBDLPD']))
+                except: PUBPD = None
+        if PUBPD and len(PUBPD) >= 4:
+            subfields.extend(['b', (PUBPD + '--------')[:8]])
         if PUBSC:
             if MOPD: PUBSC += ' ' + MOPD
             subfields.extend(['c', PUBSC])
         if EMBD: subfields.extend(['d', EMBD])
         if PUBST: subfields.extend(['e', PUBST])
-        if PUBSC: subfields.extend(['2', 'onixas'])
+        if PUBSC: subfields.extend(['2', 'onixpubst'])
         if subfields: record.add_field(Field('366', [' ', ' '], subfields))
+
+        for c in DISTRIBUTION_AREAS:
+            # xxxNBDEAD     Availability Date
+            # xxxNBDPAC     ONIX Product Availability – Code
+            try: NBDEAD = clean(re.sub(r'[^0-9]', '', self.row['{}NBDEAD'.format(c)]))
+            except: NBDEAD = None
+            try: NBDPAC = clean(self.row['{}NBDPAC'.format(c)])
+            except: NBDPAC = None
+            try: NBDPAT = clean(self.row['{}NBDPAT'.format(c)])
+            except: NBDPAT = None
+            if NBDEAD:
+                if c == 'UK': self.UK = True
+                subfields = ['b', NBDEAD]
+                if NBDPAC: subfields.extend(['c', NBDPAC])
+                if NBDPAT: subfields.extend(['e', NBDPAT])
+                subfields.extend(['j', c])
+                if c != 'EUR': subfields.extend(['k', DISTRIBUTION_AREAS[c][2]])
+                if NBDPAC: subfields.extend(['2', 'onixas'])
+                record.add_field(Field('366', [' ', ' '], subfields))
+
+        for i in range(1, 10):
+            try: NBDAA = clean(self.row['OTHERNBDAA{}'.format(str(i))])
+            except: NBDAA = None
+            try: NBDEAD = clean(re.sub(r'[^0-9]', '', self.row['OTHERNBDEAD{}'.format(str(i))]))
+            except: NBDEAD = None
+            try: NBDPAC = clean(self.row['OTHERNBDPAC{}'.format(str(i))])
+            except: NBDPAC = None
+            try: NBDPAT = clean(self.row['OTHERNBDPAT{}'.format(str(i))])
+            except: NBDPAT = None
+            if NBDAA and NBDEAD:
+                subfields = ['b', NBDEAD]
+                if NBDPAC: subfields.extend(['c', NBDPAC])
+                if NBDPAT: subfields.extend(['e', NBDPAT])
+                subfields.extend(['j', NBDAA])
+                if NBDPAC: subfields.extend(['2', 'onixas'])
+                record.add_field(Field('366', [' ', ' '], subfields))
 
         # 490 - Series Statement (R)
         # SN    Series Title
@@ -938,22 +990,27 @@ class NielsenTSVProducts:
             except: l = None
             if l: languages.add(l)
         LS = ', '.join(languages)
+        translations = set()
+        for i in range(1, 5):
+            try: l = clean(self.row['TFT{}'.format(str(i))])
+            except: l = None
+            if l: translations.add(l)
+        TF = ', '.join(translations)
         try: TS = clean(self.row['TS'])
         except: TS = None
-        if LS or TS:
+        if LS or TF or TS:
             for l in LANGUAGE_REPLACEMENTS:
                 if LS: LS = LS.replace(l, LANGUAGE_REPLACEMENTS[l])
+                if TF: TF = TF.replace(l, LANGUAGE_REPLACEMENTS[l])
                 if TS: TS = TS.replace(l, LANGUAGE_REPLACEMENTS[l])
-            text = 'In {}{}'.format(rreplace(LS, ', ', ' and '), '; ' if TS else '.') if LS else ''
+            text = 'In {}{}'.format(rreplace(LS, ', ', ' and '), '; ' if TF or TS else '.') if LS else ''
             if TS: text += '{}ranslated from {}.'.format('t' if LS else 'T', rreplace(TS, ', ', ' and '))
+            elif TF: text += '{}ranslated from {}.'.format('t' if LS else 'T', rreplace(TF, ', ', ' and '))
             record.add_field(Field('546', [' ', ' '], ['a', text]))
 
         # 586 - Awards Note (R)
         # PSF   Structured Prize details for all Prizes combined
         if self.values['PSF']: record.add_field(Field('586', [' ', ' '], ['a', '{}.'.format(self.values['PSF'])]))
-
-        # 588 - Source of Description Note (R)
-        record.add_field(Field('588', [' ', ' '], ['a', 'Description based on CIP data; item not viewed.']))
 
         # 650 - Subject Added Entry-Topical Term (R)
         # BIC2QT*   BIC Qualifier, version 2.1: Text Description
@@ -1072,20 +1129,19 @@ def main(argv=None):
     dir = os.path.dirname(os.path.realpath(sys.argv[0]))
     input_path = os.path.join(dir, 'Input', 'Products')
     output_path = os.path.join(dir, 'Output', 'Products')
-    database = False
 
     print('========================================')
     print('nielsen2marc_products')
     print('========================================')
     print('\nThis program converts Nielsen TSV files\n'
           'for PRODUCTS to MARC 21 (Bibliographic)\n')
+    magician()
 
-    try: opts, args = getopt.getopt(argv, 'i:o:', ['input_path=', 'output_path=', 'help', 'database'])
+    try: opts, args = getopt.getopt(argv, 'i:o:', ['input_path=', 'output_path=', 'help'])
     except getopt.GetoptError as err:
         exit_prompt('Error: {}'.format(err))
     for opt, arg in opts:
         if opt == '--help': usage(conversion_type='Products')
-        elif opt == '--database': database = True
         elif opt in ['-i', '--input_path']: input_path = arg
         elif opt in ['-o', '--output_path']: output_path = arg
         else: exit_prompt('Error: Option {} not recognised'.format(opt))
@@ -1110,42 +1166,52 @@ def main(argv=None):
     if not os.path.exists(os.path.join(output_path, 'UK')):
         os.makedirs(os.path.join(output_path, 'UK'))
 
-    if database:
-        if not os.path.isfile(DATABASE_PATH):
-            exit_prompt('Error: The file {} cannot be found'.format(DATABASE_PATH))
-        db = IsbnDatabase()
-
-    skip_check = True
-
     # --------------------
     # Iterate through input files
     # --------------------
+
+    file_count, record_count = 0, 0
+    ids = set()
+    today = datetime.date.today().strftime("%Y-%m-%d")
+
+    # Open input and output files
+    ofile = open(os.path.join(output_path, '{n:03d}_product_{t}.lex'.format(n=file_count, t=today)), mode='wb')
+    ofileUK = open(os.path.join(output_path, '{n:03d}_product_{t}_UK.lex'.format(n=file_count, t=today)), mode='wb')
+    tfile = open(os.path.join(output_path, '{n:03d}_product_{t}.txt'.format(n=file_count, t=today)), mode='w', encoding='utf-8', errors='replace')
+    dfile = open(os.path.join(output_path, '_duplicates_{}.txt'.format(today)), mode='w', encoding='utf-8', errors='replace')
+    writer = MARCWriter(ofile)
+    writerUK = MARCWriter(ofileUK)
 
     for root, subdirs, files in os.walk(input_path):
         for file in files:
             if file.endswith(('.add', '.upd', '.del')):
 
-                # Graph for ISBN information
-                G = Graph(skip_check=skip_check)
-
                 status = {'add': 'n', 'upd': 'c', 'del': 'd'}[file[-3:]]
-                ids = set()
-                date_time_message('Processing file {}'.format(str(file)))
+                date_time('Processing file {}'.format(str(file)))
 
-                # Open input and output files
                 ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace', newline='')
-                ofile = open(os.path.join(output_path, file + '.lex'), 'wb')
-                ofileUK = open(os.path.join(output_path, 'UK', file + '_UK.lex'), 'wb')
-                tfile = open(os.path.join(output_path, file + '.txt'), mode='w', encoding='utf-8', errors='replace')
-                dfile = open(os.path.join(output_path, file + '_duplicates.txt'), mode='w', encoding='utf-8', errors='replace')
-                writer = MARCWriter(ofile)
-                writerUK = MARCWriter(ofileUK)
                 i = 0
+
                 c = csv.DictReader(ifile, delimiter='\t')
                 for row in c:
                     i += 1
-                    if i % 100 == 0:
+                    record_count += 1
+
+                    if record_count % MAX_RECORDS_PER_FILE == 0:
+                        date_time('Starting new output file')
+                        # Start a new file
+                        for f in (ofile, tfile):
+                            f.close()
+                        file_count += 1
+                        ofile = open(os.path.join(output_path, '{n:03d}_product_{t}.lex'.format(n=file_count, t=today)), mode='wb')
+                        ofileUK = open(os.path.join(output_path, '{n:03d}_product_{t}_UK.lex'.format(n=file_count, t=today)), mode='wb')
+                        tfile = open(os.path.join(output_path, '{n:03d}_product_{t}.txt'.format(n=file_count, t=today)), mode='w', encoding='utf-8', errors='replace')
+                        writer = MARCWriter(ofile)
+                        writerUK = MARCWriter(ofileUK)
+
+                    if i % 1000 == 0:
                         print('{} records processed'.format(str(i)), end='\r')
+
                     nielsen = NielsenTSVProducts(row, status)
                     marc = nielsen.marc()
                     record_id = nielsen.record_id()
@@ -1156,27 +1222,14 @@ def main(argv=None):
                     if record_id:
                         if record_id in ids:
                             dfile.write(record_id + '\n')
-                        else: ids.add(record_id)
+                        ids.add(record_id)
 
-                    # Get ISBN information
-                    if database:
-                        nielsen = NielsenCluster(row)
-                        isbns = nielsen.get_alternative_formats()
-                        if isbns:
-                            data = [(i.isbn, i.format) for i in isbns if i.isbn]
-                            G.add_nodes(data)
-                            data = [(i.isbn, j.isbn) for i in isbns for j in isbns if
-                                    i.isbn and j.isbn and i.isbn != j.isbn and i.format != 'C' and j.format != 'C']
-                            G.add_edges(data)
                 print('{} records processed'.format(str(i)), end='\r')
+                ifile.close()
 
-                # Close files
-                for f in (ifile, ofile, ofileUK, tfile, dfile):
-                    f.close()
-
-                if database:
-                    G.check_graph()
-                    db.add_graph_to_database(G, skip_check=skip_check)
+    # Close files
+    for f in (ofile, ofileUK, dfile, tfile):
+        f.close()
 
     date_time_exit()
 
