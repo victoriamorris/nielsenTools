@@ -47,8 +47,6 @@ class NielsenCSVProducts:
         # Leader (NR)
         record = Record(leader='     {}am a22     2  4500'.format(self.status))
 
-        record.add_field(Field(tag='FMT', data='BK'))
-
         # 001 - Control Number
         record.add_field(Field(tag='001', data=self.values['ISBN13']))
 
@@ -152,6 +150,8 @@ class NielsenCSVProducts:
         # 787 - Other Relationship Entry (R)
         for isbn, relationship in cluster.related:
             record.add_field(Field('787', ['1', ' '], ['i', relationship, 'z', isbn.isbn]))
+
+        record.add_field(Field('FMT', [' ', ' '], ['a', 'BK']))
 
         record.add_field(Field('SRC', [' ', ' '], ['a', 'Record converted from Nielsen CSV data to MARC21 by Collection Metadata.']))
 

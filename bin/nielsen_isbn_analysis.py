@@ -15,6 +15,9 @@ from nielsenTools.functions import *
 # Set threshold for garbage collection (helps prevent the program run out of memory)
 gc.set_threshold(400, 5, 5)
 
+# Increase CSV field size limit because some fields are ENORMOUS
+csv.field_size_limit(2147483647)
+
 __author__ = 'Victoria Morris'
 __license__ = 'MIT License'
 __version__ = '1.0.0'
@@ -27,9 +30,12 @@ __status__ = '4 - Beta Development'
 
 
 OPTIONS = OrderedDict([
-    ('M', 'Parse ISBNs from MARC file'),
-    ('N', 'Parse ISBNs from Nielsen cluster file'),
-    ('T', 'Parse ISBNs from TSV file'),
+    ('B', 'Search for clusters within BL data'),
+    # ('M', 'Parse ISBNs from MARC file'),
+    ('N', 'Parse ISBNs from Nielsen cluster files'),
+    ('O', 'Parse Nielsen Organisation files'),
+    ('P', 'Parse Nielsen Product files'),
+    # ('T', 'Parse ISBNs from TSV file'),
     ('S', 'Search for ISBNs'),
     ('X', 'eXport graph'),
     ('E', 'Exit program'),
@@ -37,19 +43,23 @@ OPTIONS = OrderedDict([
 
 
 ACTIONS = {
-    'M': parse_marc,
+    'B': search_bl,
+    # 'M': parse_marc,
     'N': parse_nielsen,
-    'T': parse_tsv,
+    'O': parse_nielsen_org,
+    'P': parse_nielsen_product,
+    # 'T': parse_tsv,
     'S': search_isbns,
     'X': export_graph,
     'E': sys.exit,
 }
 
 EXTENSIONS = {
-    'M': ('.lex'),
+    'B': ('.lex',),
+    'M': ('.lex',),
     'N': ('.add', '.del', '.upd'),
-    'T': ('.tsv'),
-    'S': ('.txt'),
+    'T': ('.tsv',),
+    'S': ('.txt',),
 }
 
 NO_INPUT = ['I', 'X', 'E']
@@ -136,7 +146,7 @@ def main(argv=None):
     skip_check = True
 
     dir = os.path.dirname(os.path.realpath(sys.argv[0]))
-    input_path = os.path.join(dir, 'Input', 'Clusters')
+    input_path = os.path.join(dir, 'Input', 'Nielsen')
 
     print('========================================')
     print('nielsen_isbn_analysis')
@@ -159,9 +169,9 @@ def main(argv=None):
     if selected_option == 's' and 'i' not in set(opt for opt, arg in opts):
         input_path = os.path.join(dir, 'Input', 'Search_lists')
     # Check that files exist
-    if not input_path:
+    if selected_option not in NO_INPUT and not input_path:
         exit_prompt('Error: No path to input files has been specified')
-    if not os.path.isdir(input_path):
+    if selected_option not in NO_INPUT and not os.path.isdir(input_path):
         exit_prompt('Error: Invalid path to input files')
     if not os.path.isfile(DATABASE_PATH):
         exit_prompt('Error: The file {} cannot be found'.format(DATABASE_PATH))
