@@ -105,12 +105,17 @@ Various options allow for the identification of clusters of related ISBNs.
 
 The database file **isbns.db** must be present in the folder in which the script is run.
 
-##### Option 1: to add ISBNs from Nielsen data feeds to the database:
+##### Option 1: to add data from Nielsen files to the database:
 
-    Usage: nielsen_isbn_analysis.exe -i <input_path> -n
+    Usage: nielsen_isbn_analysis.exe -i <input_path> (-n|-o|-p)
     
-        -i    path to FOLDER containing Nielsen Input files
-    If not specified, input path will be /Input/Clusters
+        -i    path to FOLDER containing Nielsen input files
+        
+        -n    input files are Nielsen Cluster files
+        -o    input files are Nielsen Organisation files
+        -p    input files are Nielsen Product files
+                        
+    If not specified, input path will be /Input/Nielsen
     
 ##### Option 2: search for information about a list of ISBNs
 
@@ -135,6 +140,19 @@ The output file will include the following columns:
     * X - contradiction 
 * Valid? - either True or False, to indicate whether the ISBN is structurally valid.
 * Related ISBNs - a semi-colon-separated list.
+* Publication status.
+* Availability status.
+* Availability date.
+* Publisher ID.
+* Publisher name.
+* Publisher address. 
+* Publisher email. 
+* Publisher URL.
+* Imprint ID.
+* Imprint name.
+* Imprint address.
+* Imprint email.
+* Imprint URL.
     
 ##### Notes
 
