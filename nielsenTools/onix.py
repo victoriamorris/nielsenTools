@@ -12,6 +12,61 @@ __status__ = '4 - Beta Development'
 #     Constants
 # ====================
 
+# List 64	Publishing status
+ONIX_PUBLISHING_STATUS_CODES = {
+    '00':   'Unspecified',
+    '01':   'Cancelled',
+    '02':   'Forthcoming',
+    '03':   'Postponed indefinitely',
+    '04':   'Active',
+    '05':   'No longer our product',
+    '06':   'Out of stock indefinitely',
+    '07':   'Out of print',
+    '08':   'Inactive',
+    '09':   'Unknown',
+    '10':   'Remaindered',
+    '11':   'Withdrawn from sale',
+    '12':   'Recalled',
+    '13':   'Active, but not sold separately',
+    '15':   'Recalled',
+    '16':   'Temporarily withdrawn from sale',
+    '17':   'Permanently withdrawn from sale',
+}
+
+
+# List 65	Product availability
+ONIX_AVAILABILITY_CODES = {
+    '01':   'Cancelled',
+    '09':   'Not yet available, postponed indefinitely',
+    '10':   'Not yet available',
+    '11':   'Awaiting stock',
+    '12':   'Not yet available, will be POD',
+    '20':   'Available',
+    '21':   'In stock',
+    '22':   'To order',
+    '23':   'POD',
+    '30':   'Temporarily unavailable',
+    '31':   'Out of stock',
+    '32':   'Reprinting',
+    '33':   'Awaiting reissue',
+    '34':   'Temporarily withdrawn from sale',
+    '40':   'Not available (reason unspecified)',
+    '41':   'Not available, replaced by new product',
+    '42':   'Not available, other format available',
+    '43':   'No longer supplied by us',
+    '44':   'Apply direct',
+    '45':   'Not sold separately',
+    '46':   'Withdrawn from sale',
+    '47':   'Remaindered',
+    '48':   'Not available, replaced by POD',
+    '49':   'Recalled',
+    '50':   'Not sold as set',
+    '51':   'Not available, publisher indicates OP',
+    '52':   'Not available, publisher no longer sells product in this market',
+    '97':   'No recent update received',
+    '98':   'No longer receiving updates',
+    '99':   'Contact supplier',
+}
 
 ONIX_AUDIENCE_CODES = {
     '01':   'g',    # General

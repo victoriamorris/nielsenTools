@@ -17,7 +17,7 @@ __status__ = '4 - Beta Development'
 
 LEADER_LENGTH, DIRECTORY_ENTRY_LENGTH = 24, 12
 SUBFIELD_INDICATOR, END_OF_FIELD, END_OF_RECORD = chr(0x1F), chr(0x1E), chr(0x1D)
-ALEPH_CONTROL_FIELDS = ['DB ', 'FMT', 'SYS']
+ALEPH_CONTROL_FIELDS = ['DB ', 'SYS']
 
 ILLUSTRATIONS = {
     'ill': 'a',
@@ -285,6 +285,18 @@ class Record(object):
                 if isbn.isbn and isbn.isbn not in '|'.join(i.isbn for i in isbns):
                     isbns.add(isbn)
         return isbns
+
+    def get_isbns_as_strings(self):
+        return set(i.isbn for i in self.get_isbns())
+
+    def get_id(self):
+        return self['001'].data
+
+    def get_dewey(self):
+        return set(str(field) for field in self.get_fields('082'))
+
+    def get_lc(self):
+        return set(str(field) for field in self.get_fields('050'))
 
 
 class Field(object):

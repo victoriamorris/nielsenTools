@@ -39,6 +39,35 @@ GRAPH_TABLES = {
         ('isbna', 'NCHAR(13)'),
         ('isbnb', 'NCHAR(13)'),
     ]),
+    'bl_isbns': ([
+        ('bl', 'NCHAR(9)'),
+        ('isbn', 'NCHAR(13)'),
+    ]),
+    'bl_dewey': ([
+        ('bl', 'NCHAR(9)'),
+        ('dewey', 'NTEXT'),
+    ]),
+    'bl_lc': ([
+        ('bl', 'NCHAR(9)'),
+        ('lc', 'NTEXT'),
+    ]),
+    'organisations': ([
+        ('org_id', 'NTEXT PRIMARY KEY'),
+        ('org_name', 'NTEXT'),
+        ('org_address', 'NTEXT'),
+        ('org_email', 'NTEXT'),
+        ('org_url', 'NTEXT'),
+        ('date_valid', 'TEXT'),
+    ]),
+    'isbn_org_links': ([
+        ('isbn', 'NCHAR(13) PRIMARY KEY'),
+        ('org_id', 'NTEXT'),
+        ('imp_id', 'NTEXT'),
+        ('pub_status', 'TEXT'),
+        ('avail_status', 'TEXT'),
+        ('avail_date', 'TEXT'),
+        ('date_valid', 'TEXT'),
+    ]),
 }
 
 
@@ -50,8 +79,17 @@ GRAPH_TABLES = {
 def dedupe_row(row):
     row = list(map(str, row))
     for i in range(len(row)):
-        row[i] = '|'.join(sorted(set(row[i].split('|'))))
+        if ';' in row[i]:
+            row[i] = ';'.join(sorted(set(row[i].split(';'))))
+        else:
+            row[i] = '|'.join(sorted(set(row[i].split('|'))))
     return row
+
+
+def diff(l1, l2):
+    s1 = set(l1.split(';'))
+    s2 = set(l2.split(';')) - s1
+    return ';'.join(sorted(s1)), ';'.join(sorted(s2))
 
 # ====================
 #       Classes
@@ -155,18 +193,25 @@ class IsbnDatabase:
         self.conn.close()
         gc.collect()
 
-    def clean(self, quick_clean=False):
+    def clean(self, quick_clean=False, transitive=False):
         """Clean the database to remove unnecessary values"""
         date_time('Cleaning')
 
         self.remove_adjacencies_from_collective()
 
-        if not quick_clean:
+        if transitive:
             self.transitive_closure()
 
         # Delete null entries
         for table in self.tables:
             self.tables[table].clean()
+
+        print('Deleting old records')
+        self.cursor.execute('DELETE FROM organisations WHERE rowid NOT IN (SELECT MAX(rowid) FROM organisations '
+                            'GROUP BY org_id ORDER BY date_valid ASC )')
+        self.cursor.execute('DELETE FROM isbn_org_links WHERE rowid NOT IN (SELECT MAX(rowid) FROM isbn_org_links '
+                            'GROUP BY isbn ORDER BY date_valid ASC )')
+        self.conn.commit()
 
         if not quick_clean:
             date_time('Vacuuming')
@@ -185,37 +230,53 @@ class IsbnDatabase:
         del searchList
         gc.collect()
 
-    def transitive_closure(self):
+    def transitive_closure(self, isbn_list=None):
         """Ensure that the ISBN table is complete by computing the transitive closure
         (i.e. all subgraphs are complete)"""
         date_time('Computing transitive closure of isbn_equivalents')
-        depth = 1
-        while depth > 0:
-            date_time('Query depth: {}'.format(str(depth)))
-            self.cursor.execute('SELECT DISTINCT t1.isbna, t2.isbnb '
-                                'FROM isbn_equivalents AS t1 INNER JOIN isbn_equivalents AS t2 '
-                                'ON t1.isbnb = t2.isbna WHERE t1.isbna <> t2.isbnb '
-                                'AND NOT EXISTS '
-                                '( SELECT * FROM isbn_equivalents AS t3 WHERE t3.isbna = t1.isbna and t3.isbnb = t2.isbnb ) ;')
-            results = self.cursor.fetchall()
-            sql_query = 'INSERT OR IGNORE INTO isbn_equivalents (isbna, isbnb) VALUES (?, ?) ;'
-            values = []
-            record_count = 0
-            for (isbna, isbnb) in results:
-                record_count += 1
-                values.append((isbna, isbnb))
-                if record_count % 10000 == 0:
-                    print('\r{} records processed'.format(str(record_count)), end='\r')
-                    self.execute_all(sql_query, values)
-                    values = []
-            print('\r{} records processed\n'.format(str(record_count)), end='\r')
-            self.execute_all(sql_query, values)
-            if record_count > 0:
-                depth += 1
-            else:
-                self.remove_adjacencies_from_collective()
-                gc.collect()
-                return depth
+        tfile = open('TRANSITIVE_CLOSURE_.txt', mode='w', encoding='utf-8', errors='replace')
+        record_count = 0
+
+        if isbn_list:
+            self._transitive_closure(isbn_list, record_count, tfile)
+        else:
+            self.cursor.execute('SELECT DISTINCT isbna FROM isbn_equivalents')
+            result_list = self.cursor.fetchmany()
+            while result_list:
+                isbn_list = set(i[0] for i in result_list)
+                self._transitive_closure(isbn_list, record_count, tfile)
+                result_list = self.cursor.fetchmany()
+        tfile.close()
+        gc.collect()
+        date_time('Reading transitive closure data from temporary file')
+        tfile = open('TRANSITIVE_CLOSURE_.txt', mode='r', encoding='utf-8', errors='replace')
+        sql_query = 'INSERT OR IGNORE INTO isbn_equivalents (isbna, isbnb) VALUES (?, ?) ;'
+        values = []
+        for filelineno, line in enumerate(tfile):
+            isbna, isbnb = line.strip().split('\t')
+            values.append((isbna, isbnb))
+            values.append((isbnb, isbna))
+            if filelineno % 10000 == 0:
+                print('\r{} records processed'.format(str(filelineno)), end='\r')
+                values = self.execute_all(sql_query, values)
+        print('\r{} records processed'.format(str(filelineno)), end='\r')
+        self.execute_all(sql_query, values)
+        tfile.close()
+        return set()
+
+    def _transitive_closure(self, isbn_list, record_count, tfile):
+        while isbn_list:
+            isbn = isbn_list.pop()
+            record_count += 1
+            related_isbns = self.node_connected_component(isbn)
+            for isbna in related_isbns:
+                isbn_list.discard(isbna)
+                for isbnb in related_isbns:
+                    if isbna != isbnb:
+                        tfile.write('{}\t{}\n'.format(isbna, isbnb))
+            if record_count % 10000 == 0:
+                print('\r{} records processed'.format(str(record_count)), end='\r')
+        return record_count
 
     def execute_all(self, query, values):
         if values:
@@ -246,6 +307,54 @@ class IsbnDatabase:
         date_time('Creating dump of database ...')
         for table in self.tables:
             self.tables[table].dump_table()
+
+    def add_nielsen_product(self, input_path, skip_check=True):
+        """Function to add odata from Nielsen product files"""
+        query = 'INSERT OR IGNORE INTO isbn_org_links (isbn, org_id, imp_id, pub_status, avail_status, avail_date, date_valid) ' \
+                'VALUES (?, ?, ?, ?, ?, ?, ?);'
+        values = []
+        now = datetime.datetime.now()
+        for root, subdirs, files in os.walk(input_path):
+            for file in files:
+                if file.endswith(('.add', '.upd', '.del')):
+                    status = {'add': 'n', 'upd': 'c', 'del': 'd'}[file[-3:]]
+                    date_time('Parsing Nielsen product file {} ...'.format(str(file)))
+                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace', newline='')
+                    i = 0
+                    c = csv.DictReader(ifile, delimiter='\t')
+                    for row in c:
+                        i += 1
+                        nielsen = NielsenTSVProducts(row, status)
+                        values.append((nielsen.sql_values() + (now,)))
+                        if i % 10000 == 0:
+                            print('\r{} records processed'.format(str(i)), end='\r')
+                            values = self.execute_all(query, values)
+                    print('\r{} records processed'.format(str(i)), end='\r')
+                    values = self.execute_all(query, values)
+
+    def add_nielsen_org(self, input_path, skip_check=True):
+        """Function to add odata from Nielsen organisation files"""
+        query = 'INSERT OR IGNORE INTO organisations (org_id, org_name, org_address, org_email, org_url, date_valid) ' \
+                'VALUES (?, ?, ?, ?, ?, ?);'
+        values = []
+        now = datetime.datetime.now()
+        for root, subdirs, files in os.walk(input_path):
+            for file in files:
+                if file.endswith(('.add', '.upd', '.del')):
+                    status = {'add': 'n', 'upd': 'c', 'del': 'd'}[file[-3:]]
+                    date_time('Parsing Nielsen organisation file {} ...'.format(str(file)))
+                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace', newline='')
+                    i = 0
+                    c = csv.DictReader(ifile, delimiter='\t')
+                    for row in c:
+                        i += 1
+                        nielsen = NielsenTSVOrganisations(row, status)
+                        values.append((nielsen.sql_values() + (now,)))
+                        if i % 10000 == 0:
+                            print('\r{} records processed'.format(str(i)), end='\r')
+                            values = self.execute_all(query, values)
+                    print('\r{} records processed'.format(str(i)), end='\r')
+                    values = self.execute_all(query, values)
 
     def add_nielsen(self, input_path, skip_check=True):
         """Function to add ISBN equivalences from Nielsen cluster files"""
@@ -288,6 +397,70 @@ class IsbnDatabase:
             return
     '''
 
+    def search_bl(self, input_path):
+        """Function to search for transferrable information within BL records"""
+        queries = {'isbns': 'INSERT OR IGNORE INTO bl_isbns (bl, isbn) VALUES (?, ?);',
+                   'dewey': 'INSERT OR IGNORE INTO bl_dewey (bl, dewey) VALUES (?, ?);',
+                   'lc': 'INSERT OR IGNORE INTO bl_lc (bl, lc) VALUES (?, ?);'}
+        values = {q: [] for q in queries}
+        for root, subdirs, files in os.walk(input_path):
+            for file in files:
+                if file.startswith('full') and file.endswith('.lex'):
+                    date_time('Reading file {}'.format(file))
+                    ifile = open(os.path.join(root, file), mode='rb')
+                    reader = MARCReader(ifile)
+                    record_count = 0
+                    for record in reader:
+                        record_count += 1
+                        record_id = record.get_id()
+                        isbns = record.get_isbns_as_strings()
+                        dewey = record.get_dewey()
+                        lc = record.get_lc()
+                        for i in isbns:
+                            values['isbns'].append((record_id, i))
+                        for d in dewey:
+                            values['dewey'].append((record_id, d))
+                        for l in lc:
+                            values['lc'].append((record_id, l))
+                        if record_count % 10000 == 0:
+                            print('\r{} records processed'.format(str(record_count)), end='\r')
+                            values = self.execute_all_many(queries, values)
+
+                    ifile.close()
+                    print('\r{} records processed'.format(str(record_count)), end='\r')
+                    values = self.execute_all_many(queries, values)
+
+    def match_bl(self):
+        ofile = open('bl_cross_references.txt', mode='w', encoding='utf-8', errors='replace')
+        ofile.write('Record ID\tISBNs\tDewey\tLC\tRelated ISBNs\tRelated BL record IDs\tPossible Dewey\tPossible LC\n')
+        self.cursor.execute("SELECT bl_isbns.bl, GROUP_CONCAT(bl_isbns.isbn, ';'), "
+                            "GROUP_CONCAT(bl_dewey.dewey, ';'), "
+                            "GROUP_CONCAT(bl_lc.lc, ';'), "
+                            "GROUP_CONCAT(isbn_equivalents.isbnb, ';'), "
+                            "GROUP_CONCAT(bl_isbns2.bl, ';'), "
+                            "GROUP_CONCAT(bl_dewey2.dewey, ';'), "
+                            "GROUP_CONCAT(bl_lc2.lc, ';') "
+                            "FROM bl_isbns "
+                            "LEFT JOIN bl_dewey ON bl_isbns.bl = bl_dewey.bl "
+                            "LEFT JOIN bl_lc ON bl_isbns.bl = bl_lc.bl "
+                            "INNER JOIN isbn_equivalents ON bl_isbns.isbn = isbn_equivalents.isbna "
+                            "INNER JOIN bl_isbns AS bl_isbns2 ON isbn_equivalents.isbnb = bl_isbns2.isbn "
+                            "LEFT JOIN bl_dewey AS bl_dewey2 ON bl_isbns2.bl = bl_dewey2.bl "
+                            "LEFT JOIN bl_lc AS bl_lc2 ON bl_isbns2.bl = bl_lc2.bl "
+                            "GROUP BY bl_isbns.bl "
+                            "ORDER BY bl_isbns.bl ASC ;")
+        try: row = list(self.cursor.fetchone())
+        except: row = None
+        while row:
+            record, isbn, dewey, lc, related_isbn, related_bl, related_dewey, related_lc = dedupe_row(row)
+            dewey, related_dewey = diff(dewey, related_dewey)
+            lc, related_lc = diff(lc, related_lc)
+            ofile.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(record, isbn, dewey, lc, related_isbn, related_bl, related_dewey, related_lc))
+            try: row = list(self.cursor.fetchone())
+            except: row = None
+        ofile.close()
+        gc.collect()
+
     def search_for_isbns(self, input_path):
         for root, subdirs, files in os.walk(input_path):
             for file in files:
@@ -296,21 +469,29 @@ class IsbnDatabase:
 
                     isbn_list = {}
                     ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace')
+                    tfile = open(os.path.join(root, file.replace('.txt', '_temp.txt')), mode='w', encoding='utf-8', errors='replace')
+
                     for filelineno, line in enumerate(ifile):
                         if filelineno % 10000 == 0:
                             print('\r{} records processed'.format(str(filelineno)), end='\r')
                         line = line.strip()
                         isbn = Isbn(line)
                         if isbn.isbn:
-                            isbn_list[isbn.isbn] = [line, isbn.isbn, isbn.prefix, 'U', isbn.valid, '']
-                            # Input ISBN, 13-digit ISBN, Prefix, Format, Valid?, Related Identifiers
+                            isbn_list[isbn.isbn] = [line, isbn.isbn, isbn.prefix, isbn.valid]
+                            # Input ISBN, 13-digit ISBN, Prefix, Valid?
                     ifile.close()
                     print('\r{} records processed'.format(str(filelineno)), end='\r')
 
                     date_time('Searching for matches from file {}'.format(file))
                     searchList = '\'' + '\', \''.join(i for i in isbn_list) + '\''
-                    self.cursor.execute("SELECT isbns.isbn, isbns.format, GROUP_CONCAT(isbn_equivalents.isbnb, ';') "
-                                        "FROM isbns INNER JOIN isbn_equivalents on isbns.isbn = isbn_equivalents.isbna "
+                    self.cursor.execute("SELECT isbns.isbn, isbns.format, GROUP_CONCAT(isbn_equivalents.isbnb, ';'), "
+                                        "isbn_org_links.pub_status, isbn_org_links.avail_status, isbn_org_links.avail_date, "
+                                        "isbn_org_links.org_id, o1.org_name, o1.org_address, o1.org_email, o1.org_url, "
+                                        "isbn_org_links.imp_id, o2.org_name, o2.org_address, o2.org_email, o2.org_url "
+                                        "FROM isbns INNER JOIN isbn_equivalents ON isbns.isbn = isbn_equivalents.isbna "
+                                        "LEFT JOIN isbn_org_links ON isbns.isbn = isbn_org_links.isbn "
+                                        "LEFT JOIN organisations AS o1 on isbn_org_links.org_id = o1.org_id "
+                                        "LEFT JOIN organisations AS o2 on isbn_org_links.imp_id = o2.org_id "
                                         "WHERE isbns.isbn IN ({}) "
                                         "GROUP BY isbns.isbn "
                                         "ORDER BY isbns.isbn ASC ;".format(searchList))
@@ -321,72 +502,60 @@ class IsbnDatabase:
                         record_count += 1
                         if record_count % 10000 == 0:
                             print('\r{} records processed'.format(str(record_count)), end='\r')
-                        isbn, format, related = dedupe_row(row)
+                        isbn, format, related, pub_status, avail_status, avail_date, \
+                        org_id, org_name, org_address, org_email, org_url, \
+                        imp_id, imp_name, imp_address, imp_email, imp_url = dedupe_row(row)
                         if isbn in isbn_list:
-                            isbn_list[isbn][3] = format
-                            isbn_list[isbn][5] = related
+                            line = isbn_list[isbn][0]
+                            prefix = isbn_list[isbn][2]
+                            valid = isbn_list[isbn][3]
+                            try: pub_status = '{} ({})'.format(pub_status, ONIX_PUBLISHING_STATUS_CODES[pub_status])
+                            except KeyError: pass
+                            try: avail_status= '{} ({})'.format(avail_status, ONIX_AVAILABILITY_CODES[avail_status])
+                            except KeyError: pass
+                            tfile.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.
+                                        format(line, isbn, prefix, format, valid, related,
+                                               pub_status, avail_status, avail_date,
+                                               org_id, org_name, org_address, org_email, org_url,
+                                               imp_id, imp_name, imp_address, imp_email, imp_url))
                         try: row = list(self.cursor.fetchone())
                         except: row = None
                     del row
                     print('\r{} records processed'.format(str(record_count)), end='\r')
+                    tfile.close()
+                    del tfile
+                    del isbn_list
                     gc.collect()
 
-                    ofile = open(os.path.join(root, file.replace('.txt', '_out.txt')), mode='w',
-                                 encoding='utf-8', errors='replace')
-                    ofile.write('Input ISBN\t13-digit ISBN\tPrefix\tFormat\tValid?\tRelated Identifiers\n')
+                    date_time('Reading ISBN matches from temporary file')
+                    isbn_list = {}
+                    tfile = open(os.path.join(root, file.replace('.txt', '_temp.txt')), mode='r', encoding='utf-8', errors='replace')
+                    for filelineno, line in enumerate(tfile):
+                        if filelineno % 10000 == 0:
+                            print('\r{} records processed'.format(str(filelineno)), end='\r')
+                        line = line.strip()
+                        isbn_list[line.split('\t')[0]] = line.split('\t')
+                    tfile.close()
+                    del tfile
+                    print('\r{} records processed'.format(str(filelineno)), end='\r')
+                    gc.collect()
+
+                    date_time('Writing matches to output')
+                    ofile = open(os.path.join(root, file.replace('.txt', '_out.txt')), mode='w', encoding='utf-8', errors='replace')
+                    ofile.write('Input ISBN\t13-digit ISBN\tPrefix\tFormat\tValid?\tRelated Identifiers\tPublication status\tAvailability status\tAvailability date\tPublisher ID\tPublisher name\tPublisher address\tPublisher email\tPublisher URL\tImprint ID\tImprint name\tImprint address\tImprint email\tImprint URL\n')
                     ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace')
                     for filelineno, line in enumerate(ifile):
+                        if filelineno % 10000 == 0:
+                            print('\r{} records processed'.format(str(filelineno)), end='\r')
                         line = line.strip()
-                        isbn = Isbn(line)
-                        if isbn.isbn in isbn_list:
-                            ofile.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(*isbn_list[isbn.isbn]))
-                        else: ofile.write('{}\t\t\t\tFalse\t\n'.format(line))
+                        if line in isbn_list:
+                            ofile.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(*isbn_list[line]))
+                        else: ofile.write('{}\t\t\t\tFalse\t\t\t\t\t\t\t\t\t\t\t\t\t\t\n'.format(line))
                     ifile.close()
                     ofile.close()
+                    print('\r{} records processed'.format(str(filelineno)), end='\r')
                     gc.collect()
                     return record_count
-
-
-
-
-                    '''
-                    connected_components = {}
-                    isbn_list = set()
-                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace')
-                    for filelineno, line in enumerate(ifile):
-                        line = line.strip()
-                        isbn = Isbn(line)
-                        if isbn.isbn:
-                            isbn_list.add(isbn.isbn)
-                            if isbn.isbn not in connected_components: connected_components[isbn.isbn] = set()
-                    ifile.close()
-
-                    for u in connected_components:
-                        for v in connected_components:
-                            if u in connected_components[v]:
-                                connected_components[u] = connected_components[v]
-                                connected_components[u].add(v)
-                                break
-                        if not connected_components[u]:
-                            connected_components[u] = self.node_connected_component(u)
-
-                    formats = self.get_formats([u for u in connected_components])
-
-                    ofile = open(os.path.join(root, file.replace('.txt', '_out.txt')), mode='w',
-                                 encoding='utf-8', errors='replace')
-                    ofile.write('Input ISBN\t13-digit ISBN\tPrefix\tFormat\tValid?\tRelated Identifiers\n')
-                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace')
-
-                    for filelineno, line in enumerate(ifile):
-                        line = line.strip()
-                        isbn = Isbn(line)
-                        if isbn.isbn in formats: isbn.format = formats[isbn.isbn]
-                        ofile.write('{}\t{}\t{}\n'.format(line, str(isbn),
-                                                          ';'.join(sorted(
-                                                              connected_components[isbn.isbn])) if isbn.isbn else ''))
-                    ifile.close()
-                    ofile.close()
-                    '''
 
     def fetch_all(self, query):
         self.cursor.execute(query)
@@ -558,11 +727,13 @@ class IsbnDatabase:
 # ====================
 
 
+'''
 def parse_marc(input_path, skip_check=True) -> None:
     db = IsbnDatabase()
     db.add_marc(input_path, skip_check)
     db.dump_database()
     db.close()
+'''
 
 
 def parse_nielsen(input_path, skip_check=True) -> None:
@@ -572,16 +743,39 @@ def parse_nielsen(input_path, skip_check=True) -> None:
     db.close()
 
 
+def parse_nielsen_org(input_path, skip_check=True) -> None:
+    db = IsbnDatabase()
+    db.add_nielsen_org(input_path, skip_check)
+    db.dump_database()
+    db.close()
+
+
+def parse_nielsen_product(input_path, skip_check=True) -> None:
+    db = IsbnDatabase()
+    db.add_nielsen_product(input_path, skip_check)
+    db.dump_database()
+    db.close()
+
+
+'''
 def parse_tsv(input_path, skip_check=True) -> None:
     db = IsbnDatabase()
     db.add_tsv(input_path, skip_check)
     db.dump_database()
     db.close()
+'''
 
 
 def search_isbns(input_path, skip_check=True) -> None:
     db = IsbnDatabase()
     db.search_for_isbns(input_path)
+    db.close()
+
+
+def search_bl(input_path, skip_check=True) -> None:
+    db = IsbnDatabase()
+    #db.search_bl(input_path)
+    db.match_bl()
     db.close()
 
 
@@ -593,7 +787,7 @@ def index(input_path, skip_check=True) -> None:
 
 def export_graph(input_path, skip_check=True) -> None:
     db = IsbnDatabase()
-    db.clean()
+    db.clean(transitive=True)
     db.dump_database()
     for f in ISBN_FORMATS:
         db.write_isbns_by_format(f=f)
