@@ -1662,7 +1662,8 @@ class NielsenTSVProducts:
         elif self.material_type == 'BK':
             # 18-21 - Illustrations
             # ILL   Illustrations and other contents note.
-            if self.values['ILL']: data += (''.join(ILLUSTRATIONS[x] for x in ILLUSTRATIONS if x in self.values['ILL']).strip() + '    ')[:4]
+            if self.values['ILL']:
+                data += (''.join(ILLUSTRATIONS[x] for x in ILLUSTRATIONS if x in self.values['ILL'].lower()).strip() + '    ')[:4]
             else: data += '    '
             # 22 - Target audience
             # NAC*  Nielsen BookData Audience level: Code
@@ -2142,7 +2143,7 @@ class NielsenTSVProducts:
                 try: CCPRA = clean(self.row['{}CCPRA'.format(cur)])
                 except: CCPRA = None
 
-                if CCPRRRP:
+                if c == 'UK' and CCPRRRP:
                     self.UK = True
                     subfields = ['a', CCPTC or '02', 'b', CCPRRRP, 'c', cur, 'd', '00']
                     if CCPRPN: subfields.extend(['e', CCPRPN])
