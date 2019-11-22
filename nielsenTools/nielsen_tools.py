@@ -1874,7 +1874,7 @@ class NielsenTSVProducts:
         elif editors: resp += ' ; edited by ' + editors[0]
 
         others = [clean('{} {}'.format(n.role, str(n))) for n in names if n.role not in ['author', 'editor']]
-        resp += ' ; '.join(others)
+        resp += ' ; ' + ' ; '.join(others)
 
         if resp != '': resp = clean(resp) + '.'
 
