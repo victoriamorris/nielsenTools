@@ -183,6 +183,7 @@ ONIX_PRODUCT_FORM = {
     'DC':	['', 'computer dataset', 'computer', 'computer disc', 'm', 'cc |g|||||||||'],    # CD-I                              #
     'DE':	['', 'computer program', 'computer', 'other', 'm', 'c| |||||||||||'],            # Game cartridge                    #
     'DF':	['', 'computer dataset', 'computer', 'computer disc', 'm', 'c| |||||||||||'],    # Diskette                          #
+    'DG':	['', 'text', 'computer', 'unspecified', 'a', 'cr |||||||||||'],                  # Electronic book text              #
     'DI':	['', 'computer dataset', 'computer', 'computer disc', 'm', 'cc |g|||||||||'],    # DVD-ROM                           #
     'DJ':	['', 'computer dataset', 'computer', 'computer card', 'm', 'c| |||||||||||'],    # Secure Digital (SD) Memory Card   #
     'DK':	['', 'computer dataset', 'computer', 'computer card', 'm', 'c| |||||||||||'],    # Compact Flash Memory Card         #
@@ -283,10 +284,10 @@ ONIX_PRODUCT_FORM = {
 # ONIX code:    ONIX value, RDA content term, RDA code, LDR/06 code
 ONIX_PRODUCT_CONTENT_TYPE = {
     '10':	['Text (eye-readable)', 'text', 'txt', 'a'],
-    '15':	'Extensive links between internal content',
-    '14':	'Extensive links to external content',
+    '15':	['Extensive links between internal content',],
+    '14':	['Extensive links to external content',],
     '16':	['Additional eye-readable text not part of main work', 'text', 'txt', 'a'],
-    '41':	'Additional eye-readable links to external content',
+    '41':	['Additional eye-readable links to external content',],
     '17':	['Promotional text for other book product', 'text', 'txt', 'a'],
     '11':	['Musical notation', 'notated music', 'ntm', 'c'],
     '07':	['Still images / graphics', 'still image', 'sti', 'k'],
@@ -294,7 +295,7 @@ ONIX_PRODUCT_CONTENT_TYPE = {
     '19':	['Figures, diagrams, charts, graphs', 'still image', 'sti', 'k'],
     '20':	['Additional images / graphics not part of main work', 'still image', 'sti', 'k'],
     '12':	['Maps and/or other cartographic content', 'cartographic image', 'cri', 'e',],
-    '42':	'Assessment material',
+    '42':	['Assessment material',],
     '01':	['Audiobook', 'spoken word', 'spw', 'i'],
     '02':	['Performance – spoken word', 'spoken word', 'spw', 'i'],
     '13':	['Other speech content', 'spoken word', 'spw', 'i'],
@@ -313,17 +314,17 @@ ONIX_PRODUCT_CONTENT_TYPE = {
     '30':	['Additional video content not part of main work', 'two-dimensional moving image', 'tdi', 'g'],
     '31':	['Promotional video for other book product', 'two-dimensional moving image', 'tdi', 'g'],
     '05':	['Game / Puzzle', 'tactile three-dimensional form', 'tcf', 'r'],
-    '32':	'Contest',
+    '32':	['Contest',],
     '08':	['Software', 'computer program', 'cop', 'm'],
     '09':	['Data', 'computer dataset', 'cod', 'm'],
     '33':	['Data set plus software', 'computer dataset', 'cod', 'm'],
-    '34':	'Blank pages or spaces',
-    '35':	'Advertising content',
-    '37':	'Advertising – first party',
-    '36':	'Advertising – coupons',
-    '38':	'Advertising – third party display',
-    '39':	'Advertising – third party textual',
-    '40':	'Scripting',
+    '34':	['Blank pages or spaces',],
+    '35':	['Advertising content',],
+    '37':	['Advertising – first party',],
+    '36':	['Advertising – coupons',],
+    '38':	['Advertising – third party display',],
+    '39':	['Advertising – third party textual',],
+    '40':	['Scripting',],
 }
 
 
@@ -336,7 +337,7 @@ class OnixProductContentType:
             self.rda_code = mappings[2]
             self.leader_06 = mappings[3]
         else:
-            self.onix_text = mappings
+            self.onix_text = mappings[0]
             self.rda_text = None
             self.rda_code = None
             self.leader_06 = None

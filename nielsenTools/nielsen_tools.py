@@ -1695,14 +1695,19 @@ class NielsenTSVProducts:
             test_string = '|' + '|'.join(self.row['{}{}'.format(subject_type, str(i))]
                                          for subject_type in [s for s in ['BIC2ST', 'BISACT', 'THEMAST', 'UKSLCAFT', 'UKSLCANFT', 'UKSLCCT'] if '{}1'.format(s) in self.row]
                                          for i in range(1, 6 if subject_type.startswith('UKSLC') else 10)).lower()
+            for s in ['PFC', 'PFCT']:
+                if self.values[s]: test_string += '|' + self.values[s].lower()
+            test_string = test_string.lower()
             data += 'd' if '|drama' in test_string \
                 else 'e' if ('|essays' in test_string or '/ essays' in test_string) \
                 else 'i' if '/ letters' in test_string \
                 else 'j' if ('|short stories' in test_string or '/ short stories' in test_string) \
+                else 'm' if 'mixed media' in test_string \
                 else 'p' if '|poetry' in test_string \
-                else '1' if ('|fiction' in test_string or ' fiction' in test_string) \
-                else '0' if ('nonfiction' in test_string or 'non-fiction' in test_string) \
+                else '1' if any(s in test_string for s in ['|fiction', ' fiction', 'narrative theme']) \
+                else '0' if any(s in test_string for s in ['nonfiction', 'non-fiction', '|reference', '/ general', ' general issues', 'history & criticism', 'historical & comparative', 'foreign language study']) \
                 else '|'
+                # Ony include 'general' in non-fiction line if it comes after fiction
             # 34 - Biography
             data += 'a' if 'autobiography' in test_string else 'd' if 'biography' in test_string else '|'
         elif self.material_type == 'MX': data += '     |           '
@@ -1874,9 +1879,10 @@ class NielsenTSVProducts:
         elif editors: resp += ' ; edited by ' + editors[0]
 
         others = [clean('{} {}'.format(n.role, str(n))) for n in names if n.role not in ['author', 'editor']]
-        resp += ' ; ' + ' ; '.join(others)
+        if len(others) > 0: resp += ' ; ' + ' ; '.join(others)
 
-        if resp != '': resp = clean(resp) + '.'
+        if resp and resp != '': resp = clean(resp)
+        if resp and resp != '': resp += '.'
 
         authors = [n for n in names if n.role == 'author']
         if authors:
@@ -2107,7 +2113,7 @@ class NielsenTSVProducts:
         try: content_types.add(ONIX_PRODUCT_FORM[self.values['PFC']][1])
         except: pass
         for i in range(1, 10):
-            try: content_types.add(ONIX_PRODUCT_CONTENT_TYPE[clean(self.row['PCTC{}'.format(str(i))])].rda_text)
+            try: content_types.add((ONIX_PRODUCT_CONTENT_TYPE_MAP[self.row['PCTC{}'.format(str(i))]]).rda_text)
             except: pass
         for v in content_types:
             record.add_field(Field('336', [' ', ' '], ['a', v, '2', 'rdacontent']))
