@@ -2116,7 +2116,8 @@ class NielsenTSVProducts:
             try: content_types.add((ONIX_PRODUCT_CONTENT_TYPE_MAP[self.row['PCTC{}'.format(str(i))]]).rda_text)
             except: pass
         for v in content_types:
-            record.add_field(Field('336', [' ', ' '], ['a', v, '2', 'rdacontent']))
+            if v:
+                record.add_field(Field('336', [' ', ' '], ['a', v, '2', 'rdacontent']))
 
         # 337 - Media Type (R)
         # A categorization reflecting the general type of intermediation device required
