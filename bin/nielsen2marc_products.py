@@ -24,7 +24,7 @@ __license__ = 'MIT License'
 __version__ = '1.0.0'
 __status__ = '4 - Beta Development'
 
-MAX_RECORDS_PER_FILE = 1000000
+MAX_RECORDS_PER_FILE = 400000
 
 
 # ====================
