@@ -51,7 +51,8 @@ Converts Nielsen records for **organisations** (publishers, imprints and distrib
     If not specified, output path will be /Output/Organisations
 
     Options:
-        --help    Show help message and exit.
+	-t	Also produce text versions of output files
+        --help	Show help message and exit.
       
 Input files must be **tab-delimited** files; the file names should end .add, .upd, or .del.
 
@@ -73,7 +74,8 @@ Converts Nielsen records for **products** (books, etc.) to MARC Bibliographic fo
     If not specified, output path will be /Output/Products
     
     Options:
-        --help  Show help message and exit.
+	-t	Also produce text versions of output files
+        --help	Show help message and exit.
 
 Input files must be **tab-delimited** files; the file names should end .add, .upd, or .del.
 
@@ -95,6 +97,7 @@ Converts Nielsen CSV files for **clusters** to MARC 21 (Bibliographic) format.
     If not specified, output path will be /Output/Products
 
     Options:
+	-t	Also produce text versions of output files
         --help  Show help message and exit.
 
 Input files must be **tab-delimited** files; the file names should end .add, .upd, or .del.
