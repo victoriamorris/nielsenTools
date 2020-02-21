@@ -170,6 +170,7 @@ def main(argv=None):
     dir = os.path.dirname(os.path.realpath(sys.argv[0]))
     input_path = os.path.join(dir, 'Input', 'Clusters')
     output_path = os.path.join(dir, 'Output', 'Clusters')
+    text_output = False
 
     print('========================================')
     print('nielsen2marc_clusters')
@@ -178,13 +179,14 @@ def main(argv=None):
           'for CLUSTERS to MARC 21 (Bibliographic)\n')
     magician()
 
-    try: opts, args = getopt.getopt(argv, 'i:o:', ['input_path=', 'output_path=', 'help'])
+    try: opts, args = getopt.getopt(argv, 'i:o:t', ['input_path=', 'output_path=', 'help'])
     except getopt.GetoptError as err:
         exit_prompt('Error: {}'.format(err))
     for opt, arg in opts:
         if opt == '--help': usage(conversion_type='Clusters')
         elif opt in ['-i', '--input_path']: input_path = arg
         elif opt in ['-o', '--output_path']: output_path = arg
+        elif opt == '-t': text_output = True
         else: exit_prompt('Error: Option {} not recognised'.format(opt))
 
     if not input_path:
@@ -204,67 +206,69 @@ def main(argv=None):
 
     print('Input folder: {}'.format(input_path))
     print('Output folder: {}'.format(output_path))
+    if text_output: print('Text versions of output files will be created')
 
     # --------------------
     # Iterate through input files
     # --------------------
 
-    file_count, record_count = 0, 0
-    ids = set()
     today = datetime.date.today().strftime("%Y-%m-%d")
 
-    # Open input and output files
+    '''
     ofile = open(os.path.join(output_path, '{n:03d}_cluster_{t}.lex'.format(n=file_count, t=today)), mode='wb')
     tfile = open(os.path.join(output_path, '{n:03d}_cluster_{t}.txt'.format(n=file_count, t=today)), mode='w', encoding='utf-8', errors='replace')
     dfile = open(os.path.join(output_path, '_duplicates_{}.txt'.format(today)), mode='w', encoding='utf-8', errors='replace')
     writer = MARCWriter(ofile)
+    '''
 
-    for root, subdirs, files in os.walk(input_path):
-        for file in files:
-            if file.endswith(('.add', '.upd', '.del')):
+    for s in STATUSES:
+        file_count, record_count = 0, 0
+        ids = set()
 
-                status = {'add': 'n', 'upd': 'c', 'del': 'd'}[file[-3:]]
-                date_time('Processing file {} ...'.format(str(file)))
+        # Open input and output files
+        FILES, WRITERS, file_count = new_files({}, {}, 'cluster', output_path, s, file_count, today, text_output)
 
-                ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace', newline='')
-                i = 0
+        status = {'add': 'n', 'upd': 'c', 'del': 'd'}[s]
 
-                c = csv.DictReader(ifile, delimiter='\t')
-                for row in c:
-                    i += 1
-                    record_count += 1
+        for root, subdirs, files in os.walk(input_path):
+            for file in files:
+                if file.endswith('.{}'.format(s)):
+                    date_time('Processing file {} ...'.format(str(file)))
 
-                    if record_count % MAX_RECORDS_PER_FILE == 0:
-                        date_time('Starting new output file')
-                        # Start a new file
-                        for f in (ofile, tfile):
-                            f.close()
-                        file_count += 1
-                        ofile = open(os.path.join(output_path, '{n:03d}_cluster_{t}.lex'.format(n=file_count, t=today)), mode='wb')
-                        tfile = open(os.path.join(output_path, '{n:03d}_cluster_{t}.txt'.format(n=file_count, t=today)), mode='w', encoding='utf-8', errors='replace')
-                        writer = MARCWriter(ofile)
+                    ifile = open(os.path.join(root, file), mode='r', encoding='utf-8', errors='replace', newline='')
+                    i = 0
 
-                    if i % 1000 == 0:
-                        print('{} records processed'.format(str(i)), end='\r')
+                    c = csv.DictReader(ifile, delimiter='\t')
+                    for row in c:
+                        i += 1
+                        record_count += 1
 
-                    nielsen = NielsenCSVProducts(row, status)
-                    marc = nielsen.marc()
-                    record_id = nielsen.record_id()
-                    writer.write(marc)
-                    tfile.write(str(marc) + '\n')
-                    if record_id:
-                        if record_id in ids:
-                            dfile.write(record_id + '\n')
-                        ids.add(record_id)
+                        if record_count % MAX_RECORDS_PER_FILE == 0:
+                            date_time('Starting new output file')
+                            # Start new files
+                            FILES, WRITERS, file_count = new_files(FILES, WRITERS, 'cluster', output_path, s, file_count, today, text_output)
 
-                print('{} records processed'.format(str(i)), end='\r')
-                ifile.close()
+                        if i % 1000 == 0:
+                            print('{} records processed'.format(str(i)), end='\r')
 
-    # Close files
-    for f in (ofile, tfile, dfile):
-        f.close()
+                        nielsen = NielsenCSVProducts(row, status)
+                        marc = nielsen.marc()
+                        record_id = nielsen.record_id()
+                        WRITERS['int'][s].write(marc)
+                        if text_output:
+                            FILES['text'][s].write(str(marc) + '\n')
+                        if record_id:
+                            if record_id in ids:
+                                FILES['dup'][s].write(record_id + '\n')
+                            ids.add(record_id)
 
-    print('\n{} duplicates found'.format(str(len(ids))))
+                    print('{} records processed'.format(str(i)), end='\r')
+                    ifile.close()
+
+        # Close files
+        for f in ('int', 'uk', 'dup'):
+            FILES[f][s].close()
+        if text_output: FILES['text'][s].close()
 
     date_time_exit()
 
