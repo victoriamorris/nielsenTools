@@ -42,6 +42,7 @@ def usage(conversion_type='Products'):
     print('\nUse quotation marks (") around arguments which contain spaces')
     print('\nInput file names should end .add, .upd or .del')
     print('\nOptions')
+    print('    -t          Also produce text versions of output files')
     print('    --help      Display this message and exit')
     if conversion_type == 'Products':
         print('    --database  Add ISBN information to database')
@@ -421,7 +422,7 @@ FACTS = [
     'The small car on the road is probably the size of the heart of a blue whale.',
     'The snapping shrimp is the loudest known living creature. It has specialized claws that shoot jets of water at up to 62 miles per hour and leaving a trail of bubbles that explode at 200 decibels - enough to stun and even kill its prey.',
     'The sperm whale eats about a ton of fish and squid every day.',
-    'The spring peeper lets most of its body freeze during winter hibernation and still thaw out and survive.',
+    'The spring peeper lets most of its body freeze during winter hibernation and can still thaw out and survive.',
     'The Tasmanian Devil is the largest carnivorous marsupial in the world.',
     'The three-foot-long tusks of a walrus, which grow throughout their lives, are actually canine teeth.',
     'The three-toed sloth sleeps up to 20 hours a day and is so sedentary algae grows on its back.',

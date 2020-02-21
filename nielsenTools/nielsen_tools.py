@@ -19,6 +19,9 @@ __status__ = '4 - Beta Development'
 # ====================
 
 
+STATUSES = ['add', 'upd', 'del']
+
+
 AUDIENCE_CODES = {
     'G':    'g',  # General
     'J':	'j',  # Children / Juvenile
@@ -192,6 +195,8 @@ COUNTRY_CODES = {
     'Iran, Islamic Republic of':	'ir ',
     'Iran  (Islamic Republic Of)': 'ir ',
     'Iran  (Islamic Republic of)': 'ir ',
+    'Iran, Republic of': 'ir ',
+    'Iran,  Republic Of': 'ir ',
     'Iran':	'ir ',
     'Iraq':	'iq ',
     'Iraq-Saudi Arabia Neutral Zone':	'iy ',
@@ -303,6 +308,13 @@ COUNTRY_CODES = {
     'Palau':	'pw ',
     'Palestine':	'xx ',
     'Palestine, State of ':	'xx ',
+    'Palestine, State Of ':	'xx ',
+    'Palistine, State of ':	'xx ',
+    'Palistine, State Of ':	'xx ',
+    'Palestine, State of':	'xx ',
+    'Palestine, State Of':	'xx ',
+    'Palistine, State of':	'xx ',
+    'Palistine, State Of':	'xx ',
     'Panama':	'pn ',
     'Papua New Guinea':	'pp ',
     'Paracel Islands':	'pf ',
@@ -2527,3 +2539,32 @@ class NielsenTSVProducts:
         record.add_field(Field('SRC', [' ', ' '], ['a', 'Record converted from Nielsen TSV data to MARC21 by Collection Metadata.']))
 
         return record
+
+
+# ====================
+#     Function for
+#    file handling
+# ====================
+
+
+def new_files(FILES, WRITERS, conversion_type, output_path, status, file_count, today, text_output=False):
+    if file_count == 0:
+        for f in ('int', 'uk', 'dup', 'text'):
+            FILES[f] = {}
+            WRITERS[f] = {}
+    else:
+        for f in ('int', 'uk', 'text'):
+            try: FILES[f][status].close()
+            except: pass
+    file_count += 1
+    FILES['int'][status] = open(os.path.join(output_path, '{n:03d}_{c}_{s}_{t}.lex'.format(n=file_count, c=conversion_type, s=status, t=today)), mode='wb')
+    if conversion_type == 'product':
+        FILES['uk'][status] = open(os.path.join(output_path, 'UK', '{n:03d}_{c}_{s}_{t}_UK.lex'.format(n=file_count, c=conversion_type, s=status, t=today)), mode='wb')
+    if text_output:
+        FILES['text'][status] = open(os.path.join(output_path, '{n:03d}_{c}_{s}_{t}.txt'.format(n=file_count, c=conversion_type, s=status, t=today)), mode='w', encoding='utf-8', errors='replace')
+    if file_count == 1:
+        FILES['dup'][status] = open(os.path.join(output_path, '_duplicates_{}_{}_{}.txt'.format(conversion_type, status, today)), mode='w', encoding='utf-8', errors='replace')
+    WRITERS['int'][status] = MARCWriter(FILES['int'][status])
+    if conversion_type == 'product':
+        WRITERS['uk'][status] = MARCWriter(FILES['uk'][status])
+    return FILES, WRITERS, file_count
